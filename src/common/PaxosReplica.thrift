@@ -23,5 +23,6 @@ struct TOpenOperationResp {
 }
 
 service ReplicaService {
+  CreateReplica();
   TOpenOperationResp OpenOperation(1:TOpenOperationReq req);
 }

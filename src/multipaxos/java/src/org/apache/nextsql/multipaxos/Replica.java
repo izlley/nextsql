@@ -3,7 +3,7 @@ package org.apache.nextsql.multipaxos;
 import java.util.HashMap;
 import org.apache.nextsql.storage.IStorage;
 
-public class Replica implements ReplicaService {
+public class Replica implements ReplicaService.Iface {
   private boolean _leader = false;
   private long _blockid;
   private TNetworkAddress _location;
@@ -33,4 +33,7 @@ public class Replica implements ReplicaService {
     this._storage = aStorage;
   }
   
+  public TOpenOperationResp OpenOperation(TOpenOperationReq req) {
+    
+  }
 }
