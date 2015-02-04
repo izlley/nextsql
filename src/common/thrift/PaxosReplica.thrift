@@ -11,18 +11,20 @@ enum TReplicaProtocolVersion {
 }
 
 //
-// Propose()
+// ExecuteOperation()
 //
-struct TOpenOperationReq {
+struct TExecuteOperationReq {
   1: required TOperation operation
 }
 
-struct TOpenOperationResp {
+struct TExecuteOperationResp {
   1: required TStatus status
   2: optional string data
 }
 
 service ReplicaService {
-  CreateReplica();
-  TOpenOperationResp OpenOperation(1:TOpenOperationReq req);
+  //CreateReplica();
+  //RemoveReplica();
+  //RecoverReplica();
+  TExecuteOperationResp ExecuteOperation(1:TExecuteOperationReq req);
 }

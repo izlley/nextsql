@@ -1,12 +1,14 @@
 package org.apache.nextsql.multipaxos;
 
 import java.util.HashMap;
-import org.apache.nextsql.storage.IStorage;
+import java.util.concurrent.atomic.AtomicLong;
+
+import main.java.org.apache.nextsql.storage.IStorage;
 
 public class Replica implements ReplicaService.Iface {
   private boolean _leader = false;
   private long _blockid;
-  private TNetworkAddress _location;
+  private TNetworkAddress _leaderLoc;
   private List<TNetworkAddress> _locations;
   private long _size = 0;
   
@@ -19,21 +21,22 @@ public class Replica implements ReplicaService.Iface {
   private State _state = State.ACTIVE;
   
   // must be atomic?
-  private long _slotNum = 1;
+  private AtomicLong _slotNum = new AtomicLong(0);
+  private long _decisionSlotNum = 1;
   private HashMap<Long, TOperation> _proposals = new HashMap<Long, TOperation>();
   private HashMap<Long, TOperation> _decisions = new HashMap<Long, TOperation>();
   private IStorage _storage = null;
   
   public Replica(long aBlkId, List<TNetworkAddress> aLocs, boolean aLeader,
-      IStorage aStorage) {
+      TNetworkAddress aLeaderAddr, IStorage aStorage) {
     this._blockid = aBlkId;
-    this._location = new TNetworkAddress("",0);
+    this._leaderLoc = aLeaderAddr;
     this._locations = aLocs;
     this._leader = aLeader;
     this._storage = aStorage;
   }
   
-  public TOpenOperationResp OpenOperation(TOpenOperationReq req) {
-    
+  public TExecuteOperationResp ExecuteOperation(TExecuteOperationReq req) {
+    long newSlotNum = _slotNum.incrementAndGet();
   }
 }
