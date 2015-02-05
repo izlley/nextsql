@@ -11,5 +11,5 @@ enum TStatusCode {
 
 struct TStatus {
   1: required TStatusCode status_code
-  2: optional list<string> error_messages
+  2: optional string error_message
 }

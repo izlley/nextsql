@@ -14,11 +14,11 @@ enum TReplicaProtocolVersion {
 // ExecuteOperation()
 //
 struct TExecuteOperationReq {
-  1: required TOperation operation
+  1: required Operation.TOperation operation
 }
 
 struct TExecuteOperationResp {
-  1: required TStatus status
+  1: required Status.TStatus status
   2: optional string data
 }
 

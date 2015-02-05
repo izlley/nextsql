@@ -15,65 +15,65 @@ struct TNetworkAddress {
   2: required i32 port
 }
 
-struct BallotNum {
+struct TBallotNum {
   1: required i64 id
   2: required TNetworkAddress proposer
 }
 
-struct AcceptedValue {
-  1: required BallotNum ballot_num
+struct TAcceptedValue {
+  1: required TBallotNum ballot_num
   2: required i64 slot_num
-  3: required TOperation operation
+  3: required Operation.TOperation operation
 }
 
 //
 // LeaderPropose()
 //
-struct LeaderProposeReq {
-  1: required BallotNum ballot_num
+struct TLeaderProposeReq {
+  1: required TBallotNum ballot_num
 }
 
-struct LeaderProposeResp {
-  1: required TStatus status
-  2: required BallotNum ballot_num
+struct TLeaderProposeResp {
+  1: required Status.TStatus status
+  2: required TBallotNum ballot_num
 }
 
 //
 // AcceptorPhaseOne()
 //
-struct AcceptorPhaseOneReq {
-  1: required BallotNum ballot_num
+struct TAcceptorPhaseOneReq {
+  1: required TBallotNum ballot_num
 }
 
-struct AcceptorPhaseOneResp {
-  1: required BallotNum ballot_num
+struct TAcceptorPhaseOneResp {
+  1: required TBallotNum ballot_num
   2: required TNetworkAddress acceptor
-  3: list<AcceptedValue> accepted_values
+  3: list<TAcceptedValue> accepted_values
 }
 
 //
 // LeaderAccept()
 //
-struct LeaderAcceptReq {
+struct TLeaderAcceptReq {
   1: required i64 slot_num
-  2: required TOperation operation
+  2: required Operation.TOperation operation
 }
 
-struct LeaderAcceptResp {
-  1: required TStatus status
+struct TLeaderAcceptResp {
+  1: required Status.TStatus status
 }
 
 //
 // AcceptorPhaseTwo()
 //
-struct AcceptorPhaseTwoReq {
-  1: required BallotNum ballot_num
+struct TAcceptorPhaseTwoReq {
+  1: required TBallotNum ballot_num
   2: required i64 slot_num
-  3: required TOperation operation
+  3: required Operation.TOperation operation
 }
 
-struct AcceptorPhaseTwoResp {
-  1: required BallotNum ballot_num
+struct TAcceptorPhaseTwoResp {
+  1: required TBallotNum ballot_num
   2: required TNetworkAddress acceptor
 
 }
@@ -81,18 +81,18 @@ struct AcceptorPhaseTwoResp {
 //
 // Heartbeat()
 //
-struct HeartbeatResp {
-  1: required TStatus status
+struct THeartbeatResp {
+  1: required Status.TStatus status
 }
 
 service PaxosService {
-  LeaderProposeResp LeaderPropose(1:LeaderProposeReq req);
+  TLeaderProposeResp LeaderPropose(1:TLeaderProposeReq req);
   
-  LeaderAcceptResp LeaderAccept(1:LeaderAcceptReq req);
+  TLeaderAcceptResp LeaderAccept(1:TLeaderAcceptReq req);
   
-  AcceptorPhaseOneResp AcceptorPhaseOne(1:AcceptorPhaseOneReq req);
+  TAcceptorPhaseOneResp AcceptorPhaseOne(1:TAcceptorPhaseOneReq req);
   
-  AcceptorPhaseTwoResp AcceptorPhaseTwo(1:AcceptorPhaseTwoReq req);
+  TAcceptorPhaseTwoResp AcceptorPhaseTwo(1:TAcceptorPhaseTwoReq req);
   
-  HeartbeatResp Heartbeat();
+  THeartbeatResp Heartbeat();
 }

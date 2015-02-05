@@ -6,32 +6,9 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
   <modelVersion>4.0.0</modelVersion>
-  <groupId>org.apache.nextsql.multipaxos-java</groupId>
-  <artifactId>multipaxos-java</artifactId>
+  <groupId>org.apache.nextsql.server</groupId>
+  <artifactId>server</artifactId>
   <version>0.0.1-SNAPSHOT</version>
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.thrift.tools</groupId>
-        <artifactId>maven-thrift-plugin</artifactId>
-        <version>0.1.11</version>
-        <configuration>
-          <thriftSourceRoot>${project.basedir}/../../common/thrift</thriftSourceRoot>
-          <thriftExecutable>${env.THRIFT_HOME}/install/bin/thrift</thriftExecutable>
-          <!--outputDirectory>${project.basedir}/../../common/thrift</outputDirectory-->
-        </configuration>
-        <executions>
-          <execution>
-            <id>generate</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>compile</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-    </plugins>
-  </build>
   <repositories>
     <repository>
       <id>apache</id>

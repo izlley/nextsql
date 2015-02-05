@@ -1,6 +1,6 @@
 package org.apache.nextsql.storage;
 
 public interface IStorage {
-  abstract public byte[] read();
-  abstract public long write(byte[] data);
+  public long read(byte[] buf, long offset, long size) throws StorageException;
+  public long write(byte[] buf, long offset, long size) throws StorageException;
 }
