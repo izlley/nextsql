@@ -24,7 +24,7 @@ public class Replica implements ReplicaService.Iface {
   private boolean _leader = false;
   private long _blockid;
   private TNetworkAddress _leaderLoc;
-  private List<TNetworkAddress> _locations;
+  private List<TNetworkAddress> _replicaLocs;
   private long _size = 0;
   
   // need more think...
@@ -44,13 +44,14 @@ public class Replica implements ReplicaService.Iface {
   private Paxos _paxosProtocol = null;
   
   public Replica(long aBlkId, List<TNetworkAddress> aLocs, boolean aLeader,
-      TNetworkAddress aLeaderAddr, IStorage aStorage) {
+      TNetworkAddress aLeaderAddr, IStorage aStorage) throws MultiPaxosException {
     this._blockid = aBlkId;
     this._leaderLoc = aLeaderAddr;
-    this._locations = aLocs;
+    this._replicaLocs = aLocs;
     this._leader = aLeader;
     this._storage = aStorage;
-    this._paxosProtocol = new Paxos(this);
+    // replica, leader, acceptor are co-located
+    this._paxosProtocol = new Paxos(this, aLocs);
   }
   
   @Override
@@ -61,7 +62,7 @@ public class Replica implements ReplicaService.Iface {
     // check duplicated operation
     if (_decisions.containsValue(aReq.getOperation())) {
       resp.setStatus(new TStatus(TStatusCode.ERROR));
-      resp.getStatus().setError_message("Duplicated operation is requested");
+      resp.getStatus().setError_message("Duplicated operation is requested to replica");
       return resp;
     }
     ///////////////////
@@ -108,7 +109,7 @@ public class Replica implements ReplicaService.Iface {
     return resp;
   }
   
-  private TProtocol getProtocol(TNetworkAddress aLoc)
+  protected TProtocol getProtocol(TNetworkAddress aLoc)
       throws TTransportException {
     TTransport sTransport = new TSocket(aLoc.hostname, aLoc.port, 0);
     return new TCompactProtocol(sTransport);
