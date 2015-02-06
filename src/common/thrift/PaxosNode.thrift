@@ -74,8 +74,6 @@ struct TAcceptorPhaseTwoReq {
 
 struct TAcceptorPhaseTwoResp {
   1: required TBallotNum ballot_num
-  2: required TNetworkAddress acceptor
-
 }
 
 //

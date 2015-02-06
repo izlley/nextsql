@@ -85,6 +85,7 @@ public class Replica implements ReplicaService.Iface {
       if (client != null) {
         acceptResp = client.LeaderAccept(acceptReq);
       }// else exception
+      leaderProtocol.getTransport().close();
     }
     if (acceptResp.getStatus().getStatus_code() != TStatusCode.SUCCESS) {
       resp.setStatus(acceptResp.getStatus());
@@ -109,7 +110,7 @@ public class Replica implements ReplicaService.Iface {
     return resp;
   }
   
-  protected TProtocol getProtocol(TNetworkAddress aLoc)
+  static protected TProtocol getProtocol(TNetworkAddress aLoc)
       throws TTransportException {
     TTransport sTransport = new TSocket(aLoc.hostname, aLoc.port, 0);
     return new TCompactProtocol(sTransport);

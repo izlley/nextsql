@@ -22,9 +22,22 @@ struct TExecuteOperationResp {
   2: optional string data
 }
 
+//
+// Decision()
+//
+struct TDecisionReq {
+  1: required i64 slot_num
+  2: required Operation.TOperation operation
+}
+
+struct TDecisionResp {
+  1: required Status.TStatus status
+}
+
 service ReplicaService {
   //CreateReplica();
   //RemoveReplica();
   //RecoverReplica();
   TExecuteOperationResp ExecuteOperation(1:TExecuteOperationReq req);
+  TDecisionResp Decision(1:TDecisionReq req);
 }
