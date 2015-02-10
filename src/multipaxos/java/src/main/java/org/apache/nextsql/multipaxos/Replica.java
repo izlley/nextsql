@@ -24,7 +24,7 @@ public class Replica implements ReplicaService.Iface {
   private boolean _leader = false;
   private long _blockid;
   private TNetworkAddress _leaderLoc;
-  private List<TNetworkAddress> _replicaLocs;
+  protected List<TNetworkAddress> _replicaLocs;
   private long _size = 0;
   
   // need more think...
@@ -38,8 +38,8 @@ public class Replica implements ReplicaService.Iface {
   // must be atomic?
   private AtomicLong _slotNum = new AtomicLong(0);
   private AtomicLong _decisionSlotNum = new AtomicLong(1);
-  private HashMap<Long, TOperation> _proposals = new HashMap<Long, TOperation>();
-  private HashMap<Long, TOperation> _decisions = new HashMap<Long, TOperation>();
+  private Map<Long, TOperation> _proposals = new HashMap<Long, TOperation>();
+  private Map<Long, TOperation> _decisions = new HashMap<Long, TOperation>();
   private IStorage _storage = null;
   private Paxos _paxosProtocol = null;
   
@@ -165,5 +165,11 @@ public class Replica implements ReplicaService.Iface {
         _decisionSlotNum.incrementAndGet();
       }
     }
+  }
+
+  @Override
+  public TDecisionResp Decision(TDecisionReq req) throws TException {
+    // TODO Auto-generated method stub
+    return null;
   }
 }

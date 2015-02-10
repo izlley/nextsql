@@ -47,8 +47,7 @@ struct TAcceptorPhaseOneReq {
 
 struct TAcceptorPhaseOneResp {
   1: required TBallotNum ballot_num
-  2: required TNetworkAddress acceptor
-  3: list<TAcceptedValue> accepted_values
+  2: list<TAcceptedValue> accepted_values
 }
 
 //

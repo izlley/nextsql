@@ -1,8 +1,10 @@
 package org.apache.nextsql.multipaxos;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -29,85 +31,82 @@ public class Paxos implements PaxosService.Iface {
   private Replica _replica = null;
   private Leader _leader = null;
   private Acceptor _acceptor = null;
-  private List<TNetworkAddress> _acceptorLocs;
+  protected List<TNetworkAddress> _acceptorLocs;
   
-  private class SendP2AMsg implements Callable {
-    private TNetworkAddress _dest;
-    private TAcceptorPhaseTwoReq _msg;
-    private boolean _self;
-    public SendP2AMsg(TNetworkAddress aAddr, TAcceptorPhaseTwoReq aMsg, boolean aSelf) {
-      this._dest = aAddr;
-      this._msg = aMsg;
-      this._self = aSelf;
-    }
-    @Override
-    public Object call() throws Exception {
-      TAcceptorPhaseTwoResp resp = null;
-      if (_self) {
-        resp = AcceptorPhaseTwo(_msg);
-      } else {
-        TProtocol acceptorProtocol = Replica.getProtocol(_dest);
-        acceptorProtocol.getTransport().open();
-        PaxosService.Iface client = new PaxosService.Client(acceptorProtocol);
-        if (client != null) {
-          resp = client.AcceptorPhaseTwo(_msg);
-        }// else exception
-        acceptorProtocol.getTransport().close();
-      }
-      return resp;
-    }
+  private static enum PaxosMsgType {
+    P1A, P2A
   }
   
-  private class SendP1AMsg implements Callable {
+  private class SendPaxosMsg implements Callable {
+    private PaxosMsgType _type;
     private TNetworkAddress _dest;
-    private TAcceptorPhaseTwoReq _msg;
+    private Object _msg;
     private boolean _self;
-    public SendP1AMsg(TNetworkAddress aAddr, TAcceptorPhaseTwoReq aMsg, boolean aSelf) {
+    public SendPaxosMsg(PaxosMsgType aType, TNetworkAddress aAddr, Object aMsg, boolean aSelf) {
+      this._type = aType;
       this._dest = aAddr;
       this._msg = aMsg;
       this._self = aSelf;
     }
     @Override
     public Object call() throws Exception {
-      TAcceptorPhaseTwoResp resp = null;
-      if (_self) {
-        resp = AcceptorPhaseTwo(_msg);
-      } else {
-        TProtocol acceptorProtocol = Replica.getProtocol(_dest);
-        acceptorProtocol.getTransport().open();
-        PaxosService.Iface client = new PaxosService.Client(acceptorProtocol);
-        if (client != null) {
-          resp = client.AcceptorPhaseTwo(_msg);
-        }// else exception
-        acceptorProtocol.getTransport().close();
+      switch (_type) {
+        case P1A:
+        {
+          TAcceptorPhaseOneResp resp = null;
+          if (_self) {
+            resp = AcceptorPhaseOne((TAcceptorPhaseOneReq)_msg);
+          } else {
+            TProtocol acceptorProtocol = Replica.getProtocol(_dest);
+            acceptorProtocol.getTransport().open();
+            PaxosService.Iface client = new PaxosService.Client(acceptorProtocol);
+            if (client != null) {
+              resp = client.AcceptorPhaseOne((TAcceptorPhaseOneReq)_msg);
+            }// else exception
+            acceptorProtocol.getTransport().close();
+          }
+          return resp;
+        }
+        case P2A:
+        {
+          TAcceptorPhaseTwoResp resp = null;
+          if (_self) {
+            resp = AcceptorPhaseTwo((TAcceptorPhaseTwoReq)_msg);
+          } else {
+            TProtocol acceptorProtocol = Replica.getProtocol(_dest);
+            acceptorProtocol.getTransport().open();
+            PaxosService.Iface client = new PaxosService.Client(acceptorProtocol);
+            if (client != null) {
+              resp = client.AcceptorPhaseTwo((TAcceptorPhaseTwoReq)_msg);
+            }// else exception
+            acceptorProtocol.getTransport().close();
+          }
+          return resp;
+        }
+        default:
+          LOG.error("unknown paxos message type.");
+          return null;
       }
-      return resp;
     }
   }
   
   private class SendDecisionMsg implements Callable {
     private TNetworkAddress _dest;
-    private TAcceptorPhaseTwoReq _msg;
-    private boolean _self;
-    public SendP1AMsg(TNetworkAddress aAddr, TAcceptorPhaseTwoReq aMsg, boolean aSelf) {
+    private TDecisionReq _msg;
+    public SendDecisionMsg(TNetworkAddress aAddr, TDecisionReq aMsg) {
       this._dest = aAddr;
       this._msg = aMsg;
-      this._self = aSelf;
     }
     @Override
     public Object call() throws Exception {
-      TAcceptorPhaseTwoResp resp = null;
-      if (_self) {
-        resp = AcceptorPhaseTwo(_msg);
-      } else {
-        TProtocol acceptorProtocol = Replica.getProtocol(_dest);
-        acceptorProtocol.getTransport().open();
-        PaxosService.Iface client = new PaxosService.Client(acceptorProtocol);
-        if (client != null) {
-          resp = client.AcceptorPhaseTwo(_msg);
-        }// else exception
-        acceptorProtocol.getTransport().close();
-      }
+      TDecisionResp resp = null;
+      TProtocol replicaProtocol = Replica.getProtocol(_dest);
+      replicaProtocol.getTransport().open();
+      ReplicaService.Iface client = new ReplicaService.Client(replicaProtocol);
+      if (client != null) {
+        resp = client.Decision(_msg);
+      }// else exception
+      replicaProtocol.getTransport().close();
       return resp;
     }
   }
@@ -137,55 +136,144 @@ public class Paxos implements PaxosService.Iface {
     }
     // add to leader's proposals map
     _leader._proposals.put(aReq.getSlot_num(), aReq.getOperation());
-    if (_leader._active) {
-      TAcceptorPhaseTwoReq p2aReq = new TAcceptorPhaseTwoReq(_leader._ballotNum,
-          aReq.getSlot_num(), aReq.getOperation());
-      Set<Future<TAcceptorPhaseTwoResp>> p2bResps = new HashSet<Future<TAcceptorPhaseTwoResp>>();
-      // send p2a msg to acceptors
-      for (TNetworkAddress acc : _acceptorLocs) {
-        if (acc.equals(SystemInfo.getNetworkAddress())) {
-          p2bResps.add(_threadPool.submit(new SendP2AMsg(acc, p2aReq, true)));
-        } else {
-          p2bResps.add(_threadPool.submit(new SendP2AMsg(acc, p2aReq, false)));
-        }
+    if (_leader._active.get()) {
+      acceptAndDecide(aReq.getSlot_num(), aReq.getOperation());
+    }
+    resp.setStatus(new TStatus(TStatusCode.SUCCESS));
+    return resp;
+  }
+  
+  private void acceptAndDecide(long aSlotNum, TOperation aOp) throws TException {
+    TAcceptorPhaseTwoReq p2aReq = new TAcceptorPhaseTwoReq(_leader._ballotNum,
+        aSlotNum, aOp);
+    Set<Future<TAcceptorPhaseTwoResp>> p2bResps = new HashSet<Future<TAcceptorPhaseTwoResp>>();
+    // send p2a msg to acceptors
+    for (TNetworkAddress acc: _acceptorLocs) {
+      if (acc.equals(SystemInfo.getNetworkAddress())) {
+        p2bResps.add(_threadPool.submit(new SendPaxosMsg(PaxosMsgType.P2A, acc, p2aReq, true)));
+      } else {
+        p2bResps.add(_threadPool.submit(new SendPaxosMsg(PaxosMsgType.P2A, acc, p2aReq, false)));
       }
-      int accCnt = _acceptorLocs.size();
-      int completeCnt = 0;
-      boolean preempted = false;
-      // loop until majority accepted
-      while (completeCnt <= accCnt/2 && !preempted) {
-        for (Iterator<Future<TAcceptorPhaseTwoResp>> it = p2bResps.iterator(); it.hasNext();) {
-          Future<TAcceptorPhaseTwoResp> res = it.next();
-          if (res.isDone() && !res.isCancelled()) {
-            TAcceptorPhaseTwoResp p2bResp;
-            try {
-              p2bResp = res.get();
-              if (p2bResp != null) {
-                if (p2bResp.getBallot_num().equals(p2aReq.getBallot_num())) {
-                  ++completeCnt;
-                  it.remove();
-                } else {
-                  preempted = true;
-                  break;
-                }
+    }
+    int accCnt = _acceptorLocs.size();
+    int completeCnt = 0;
+    boolean preempted = false;
+    TAcceptorPhaseTwoResp p2bResp = null;
+    // loop until majority accepted
+    while (completeCnt <= accCnt/2 && !preempted) {
+      for (Iterator<Future<TAcceptorPhaseTwoResp>> it = p2bResps.iterator(); it.hasNext();) {
+        Future<TAcceptorPhaseTwoResp> res = it.next();
+        if (res.isDone() && !res.isCancelled()) {
+          try {
+            p2bResp = res.get();
+            if (p2bResp != null) {
+              if (p2bResp.getBallot_num().equals(p2aReq.getBallot_num())) {
+                ++completeCnt;
+                it.remove();
+              } else {
+                preempted = true;
+                break;
               }
-            } catch (InterruptedException e) {
-              // ignore
-            } catch (ExecutionException e) {
-              LOG.error("P2A sender failure:" + e.getCause());
             }
+          } catch (InterruptedException e) {
+            // ignore
+          } catch (ExecutionException e) {
+            LOG.error("P2A sender failure:" + e.getCause());
           }
         }
       }
-      if (preempted) {
-        // init phase one again
-        
-      } else {
-        // send a decision msg to replicas
-        
+    }
+    if (preempted && p2bResp != null) {
+      // another leader is elected?
+      TAcceptorPhaseOneResp p1aResp = preempted(p2bResp.getBallot_num());
+    } else {
+      TDecisionReq decisionReq = new TDecisionReq(aSlotNum, aOp);
+      Set<Future<TDecisionResp>> decisionResps = new HashSet<Future<TDecisionResp>>();
+      // send a decision msg to remote replicas
+      for (TNetworkAddress replica: _replica._replicaLocs) {
+        if (!replica.equals(SystemInfo.getNetworkAddress())) {
+          decisionResps.add(_threadPool.submit(new SendDecisionMsg(replica, decisionReq)));
+        }
       }
     }
-    return null;
+  }
+  
+  private TAcceptorPhaseOneResp preempted(TBallotNum aBallotNum) throws TException {
+    TAcceptorPhaseOneResp p1aResp = null;
+    if ((aBallotNum.getId() > _leader._ballotNum.getId()) ||
+        (aBallotNum.getId() == _leader._ballotNum.getId() &&
+        (aBallotNum.getProposer().hostname.compareTo(
+            _leader._ballotNum.getProposer().hostname) > 0))) {
+      _leader._active.set(false);
+      synchronized (_leader._ballotNum) {
+        ++_leader._ballotNum.id;
+      }
+      proposeAndAdopt(_leader._ballotNum);
+    }
+    return p1aResp;
+  }
+  
+  // propose the new ballot
+  private void proposeAndAdopt(TBallotNum aBallotNum) throws TException {
+    TAcceptorPhaseOneReq p1aReq = new TAcceptorPhaseOneReq(_leader._ballotNum);
+    Set<Future<TAcceptorPhaseOneResp>> p1bResps = new HashSet<Future<TAcceptorPhaseOneResp>>();
+    // send p1a msg to acceptors
+    for (TNetworkAddress acc: _acceptorLocs) {
+      if (acc.equals(SystemInfo.getNetworkAddress())) {
+        p1bResps.add(_threadPool.submit(new SendPaxosMsg(PaxosMsgType.P1A, acc, p1aReq, true)));
+      } else {
+        p1bResps.add(_threadPool.submit(new SendPaxosMsg(PaxosMsgType.P1A, acc, p1aReq, false)));
+      }
+    }
+    int accCnt = _acceptorLocs.size();
+    int completeCnt = 0;
+    boolean preempted = false;
+    TAcceptorPhaseOneResp p1bResp = null;
+    Map<Long, TAcceptedValue> pvalues = new HashMap<Long, TAcceptedValue>();
+    // loop until majority accepted
+    while (completeCnt <= accCnt/2 && !preempted) {
+      for (Iterator<Future<TAcceptorPhaseOneResp>> it = p1bResps.iterator(); it.hasNext();) {
+        Future<TAcceptorPhaseOneResp> res = it.next();
+        if (res.isDone() && !res.isCancelled()) {
+          try {
+            p1bResp = res.get();
+            if (p1bResp != null) {
+              if (p1bResp.getBallot_num().equals(p1aReq.getBallot_num())) {
+                for (TAcceptedValue e: p1bResp.getAccepted_values()) {
+                  if (!pvalues.containsKey(e.slot_num)) {
+                    pvalues.put(e.slot_num, e);
+                  } else {
+                    TAcceptedValue old = pvalues.get(e.slot_num);
+                    if (compareBallotNums(e.getBallot_num(), old.getBallot_num())) {
+                      pvalues.put(e.slot_num, e);
+                    }
+                  }
+                }
+                ++completeCnt;
+                it.remove();
+              } else {
+                preempted = true;
+                break;
+              }
+            }
+          } catch (InterruptedException e) {
+            // ignore
+          } catch (ExecutionException e) {
+            LOG.error("P2A sender failure:" + e.getCause());
+          }
+        }
+      }
+    }
+    if (preempted && p1bResp != null) {
+      // another leader is elected?
+      TAcceptorPhaseOneResp p1aResp = preempted(p1bResp.getBallot_num());
+    } else {
+      // update proposals map
+      
+      // adopt pre-values
+      
+      _leader._active.set(true);
+    }
   }
 
   @Override
@@ -204,5 +292,14 @@ public class Paxos implements PaxosService.Iface {
   public THeartbeatResp Heartbeat() throws TException {
     return null;
   }
-
+  
+  // if bn1 is greater than bn2, then return true
+  private boolean compareBallotNums(TBallotNum aBn1, TBallotNum aBn2) {
+    if ((aBn1.getId() > aBn2.getId()) || (aBn1.getId() == aBn2.getId() &&
+        (aBn1.getProposer().hostname.compareTo(aBn2.getProposer().hostname) > 0))
+       ) {
+      return true;
+    }
+    return false;
+  }
 }
