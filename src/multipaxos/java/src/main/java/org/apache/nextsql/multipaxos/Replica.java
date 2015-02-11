@@ -1,12 +1,18 @@
 package org.apache.nextsql.multipaxos;
 
 import org.apache.nextsql.multipaxos.thrift.*;
-
 import java.nio.charset.Charset;
-import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +27,9 @@ import org.apache.thrift.transport.TTransportException;
 
 public class Replica implements ReplicaService.Iface {
   private static final Logger LOG = LoggerFactory.getLogger(Replica.class);
+  
+  private static ExecutorService _threadPool = new ThreadPoolExecutor(
+      2, 36, 60L, TimeUnit.SECONDS, new SynchronousQueue<Runnable>());
   private boolean _leader = false;
   private long _blockid;
   private TNetworkAddress _leaderLoc;
@@ -43,6 +52,17 @@ public class Replica implements ReplicaService.Iface {
   private IStorage _storage = null;
   private Paxos _paxosProtocol = null;
   
+  private class ExecuteDupSlotOp implements Callable {
+    private TExecuteOperationReq _param;
+    public ExecuteDupSlotOp(TExecuteOperationReq aParam) {
+      this._param = aParam;
+    }
+    @Override
+    public Object call() throws Exception {
+      return ExecuteOperation(_param);
+    }
+  }
+  
   public Replica(long aBlkId, List<TNetworkAddress> aLocs, boolean aLeader,
       TNetworkAddress aLeaderAddr, IStorage aStorage) throws MultiPaxosException {
     this._blockid = aBlkId;
@@ -57,7 +77,7 @@ public class Replica implements ReplicaService.Iface {
   @Override
   public TExecuteOperationResp ExecuteOperation(TExecuteOperationReq aReq)
       throws TException {
-    LOG.debug("ExecuteOperation is requested");
+    LOG.debug("ExecuteOperation is requested to the replica");
     TExecuteOperationResp resp = new TExecuteOperationResp();
     // check duplicated operation
     if (_decisions.containsValue(aReq.getOperation())) {
@@ -70,6 +90,7 @@ public class Replica implements ReplicaService.Iface {
     ///////////////////
     // assign slotNum
     long newSlotNum = _slotNum.incrementAndGet();
+    LOG.debug("The replica propose a new SN = " + newSlotNum);
     // add to proposals map
     _proposals.put(newSlotNum, aReq.getOperation());
     // send accept msg to the leader
@@ -99,9 +120,10 @@ public class Replica implements ReplicaService.Iface {
         ; op = _decisions.get(_decisionSlotNum)) {
       TOperation pop = _proposals.get(_decisionSlotNum);
       if (pop != null && !pop.equals(op)) {
-        // need error handling
-        TExecuteOperationResp resp2 =
-          ExecuteOperation(new TExecuteOperationReq().setOperation(pop));
+        // need error handling?
+        TExecuteOperationReq execOpReq = new TExecuteOperationReq(pop);
+        Set<Future<TExecuteOperationResp>> execOpResps = new HashSet<Future<TExecuteOperationResp>>();
+        execOpResps.add(_threadPool.submit(new ExecuteDupSlotOp(execOpReq)));
       }
       // execute the operation
       perform(op, resp);
@@ -120,6 +142,8 @@ public class Replica implements ReplicaService.Iface {
     // check duplicated operation
     for (Map.Entry<Long, TOperation> entry: _decisions.entrySet()) {
       if (entry.getKey() < _decisionSlotNum.get() && entry.getValue().equals(op)) {
+        LOG.debug("Skip performing duplicated operation. preSN = " + entry.getKey() +
+          ", currSN = " + _decisionSlotNum.get());
         _decisionSlotNum.incrementAndGet();
         return;
       }
@@ -127,6 +151,7 @@ public class Replica implements ReplicaService.Iface {
     // do operation
     int retry = 3;
     synchronized(this) {
+      LOG.debug("Try to exec the operation: type = " + op.getOperation_type() + ", data = " + op.data);
       for (; retry > 0; --retry) {
         switch (op.getOperation_type()) {
           case OP_READ:

@@ -10,15 +10,17 @@
   <artifactId>multipaxos-java</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <build>
+    <directory>${project.basedir}/../../build</directory>
+    <outputDirectory>${project.build.directory}/target/java/classes</outputDirectory>
     <plugins>
       <plugin>
         <groupId>org.apache.thrift.tools</groupId>
         <artifactId>maven-thrift-plugin</artifactId>
         <version>0.1.11</version>
         <configuration>
+          <encoding>UTF-8</encoding>
           <thriftSourceRoot>${project.basedir}/../../common/thrift</thriftSourceRoot>
           <thriftExecutable>${env.THRIFT_HOME}/install/bin/thrift</thriftExecutable>
-          <!--outputDirectory>${project.basedir}/../../common/thrift</outputDirectory-->
         </configuration>
         <executions>
           <execution>

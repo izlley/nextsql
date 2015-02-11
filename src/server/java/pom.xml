@@ -9,6 +9,10 @@
   <groupId>org.apache.nextsql.server</groupId>
   <artifactId>server</artifactId>
   <version>0.0.1-SNAPSHOT</version>
+  <build>
+    <directory>${project.basedir}/../../build</directory>
+    <outputDirectory>${project.build.directory}/target/java/classes</outputDirectory>
+  </build>
   <repositories>
     <repository>
       <id>apache</id>

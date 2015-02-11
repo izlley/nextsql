@@ -1,5 +1,7 @@
 package org.apache.nextsql.multipaxos;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -10,11 +12,9 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.nextsql.multipaxos.thrift.*;
 import org.apache.nextsql.util.SystemInfo;
@@ -119,9 +119,20 @@ public class Paxos implements PaxosService.Iface {
   }
 
   @Override
-  public TLeaderProposeResp LeaderPropose(TLeaderProposeReq req)
+  public TLeaderProposeResp LeaderPropose(TLeaderProposeReq aReq)
       throws TException {
-    return null;
+    LOG.debug("LeaderPropose is requested.");
+    TLeaderProposeResp resp = new TLeaderProposeResp(new TStatus(), aReq.getBallot_num());
+    try {
+      proposeAndAdopt(aReq.getBallot_num());
+    } catch (TException e) {
+      LOG.error("LeaderPropose failure: " + e.getMessage());
+      resp.getStatus().setStatus_code(TStatusCode.ERROR);
+      resp.getStatus().setError_message("LeaderPropose failure: " + e.getMessage());
+      return resp;
+    }
+    resp.getStatus().setStatus_code(TStatusCode.SUCCESS);
+    return resp;
   }
 
   @Override
@@ -149,6 +160,7 @@ public class Paxos implements PaxosService.Iface {
     Set<Future<TAcceptorPhaseTwoResp>> p2bResps = new HashSet<Future<TAcceptorPhaseTwoResp>>();
     // send p2a msg to acceptors
     for (TNetworkAddress acc: _acceptorLocs) {
+      LOG.debug("Leader send p2a msg to aceptor(" + acc.getHostname() + ")");
       if (acc.equals(SystemInfo.getNetworkAddress())) {
         p2bResps.add(_threadPool.submit(new SendPaxosMsg(PaxosMsgType.P2A, acc, p2aReq, true)));
       } else {
@@ -167,10 +179,14 @@ public class Paxos implements PaxosService.Iface {
           try {
             p2bResp = res.get();
             if (p2bResp != null) {
+              LOG.debug("Leader get p2b msg from aceptor");
               if (p2bResp.getBallot_num().equals(p2aReq.getBallot_num())) {
                 ++completeCnt;
                 it.remove();
               } else {
+                LOG.info("Leader enter preempted mode. reqBN = " + 
+                  p2aReq.getBallot_num().id + ":" + p2aReq.getBallot_num().getProposer().hostname +
+                  ", respBN = " + p2bResp.getBallot_num().id + ":" + p2bResp.getBallot_num().getProposer().hostname);
                 preempted = true;
                 break;
               }
@@ -190,9 +206,9 @@ public class Paxos implements PaxosService.Iface {
       TDecisionReq decisionReq = new TDecisionReq(aSlotNum, aOp);
       Set<Future<TDecisionResp>> decisionResps = new HashSet<Future<TDecisionResp>>();
       // send a decision msg to remote replicas
-      for (TNetworkAddress replica: _replica._replicaLocs) {
-        if (!replica.equals(SystemInfo.getNetworkAddress())) {
-          decisionResps.add(_threadPool.submit(new SendDecisionMsg(replica, decisionReq)));
+      for (TNetworkAddress replicaLoc: _replica._replicaLocs) {
+        if (!replicaLoc.equals(SystemInfo.getNetworkAddress())) {
+          decisionResps.add(_threadPool.submit(new SendDecisionMsg(replicaLoc, decisionReq)));
         }
       }
     }
@@ -200,14 +216,13 @@ public class Paxos implements PaxosService.Iface {
   
   private TAcceptorPhaseOneResp preempted(TBallotNum aBallotNum) throws TException {
     TAcceptorPhaseOneResp p1aResp = null;
-    if ((aBallotNum.getId() > _leader._ballotNum.getId()) ||
-        (aBallotNum.getId() == _leader._ballotNum.getId() &&
-        (aBallotNum.getProposer().hostname.compareTo(
-            _leader._ballotNum.getProposer().hostname) > 0))) {
+    if (compareBallotNums(aBallotNum, _leader._ballotNum) > 0) {
       _leader._active.set(false);
       synchronized (_leader._ballotNum) {
         ++_leader._ballotNum.id;
       }
+      LOG.info("Leader increase the BN to " + _leader._ballotNum.id + ":" +
+        _leader._ballotNum.getProposer().hostname);
       proposeAndAdopt(_leader._ballotNum);
     }
     return p1aResp;
@@ -219,6 +234,7 @@ public class Paxos implements PaxosService.Iface {
     Set<Future<TAcceptorPhaseOneResp>> p1bResps = new HashSet<Future<TAcceptorPhaseOneResp>>();
     // send p1a msg to acceptors
     for (TNetworkAddress acc: _acceptorLocs) {
+      LOG.debug("Leader send p1a msg to aceptor(" + acc.getHostname() + ")");
       if (acc.equals(SystemInfo.getNetworkAddress())) {
         p1bResps.add(_threadPool.submit(new SendPaxosMsg(PaxosMsgType.P1A, acc, p1aReq, true)));
       } else {
@@ -238,13 +254,14 @@ public class Paxos implements PaxosService.Iface {
           try {
             p1bResp = res.get();
             if (p1bResp != null) {
+              LOG.debug("Leader get p1b msg from aceptor");
               if (p1bResp.getBallot_num().equals(p1aReq.getBallot_num())) {
                 for (TAcceptedValue e: p1bResp.getAccepted_values()) {
                   if (!pvalues.containsKey(e.slot_num)) {
                     pvalues.put(e.slot_num, e);
                   } else {
                     TAcceptedValue old = pvalues.get(e.slot_num);
-                    if (compareBallotNums(e.getBallot_num(), old.getBallot_num())) {
+                    if (compareBallotNums(e.getBallot_num(), old.getBallot_num()) > 0) {
                       pvalues.put(e.slot_num, e);
                     }
                   }
@@ -252,6 +269,9 @@ public class Paxos implements PaxosService.Iface {
                 ++completeCnt;
                 it.remove();
               } else {
+                LOG.info("Leader enter preempted mode. reqBN = " + 
+                  p1aReq.getBallot_num().id + ":" + p1aReq.getBallot_num().getProposer().hostname +
+                  ", respBN = " + p1bResp.getBallot_num().id + ":" + p1bResp.getBallot_num().getProposer().hostname);
                 preempted = true;
                 break;
               }
@@ -269,37 +289,64 @@ public class Paxos implements PaxosService.Iface {
       TAcceptorPhaseOneResp p1aResp = preempted(p1bResp.getBallot_num());
     } else {
       // update proposals map
-      
+      for (TAcceptedValue e: pvalues.values()) {
+        _leader._proposals.put(e.slot_num, e.operation);
+      }
       // adopt pre-values
-      
+      if (!_leader._proposals.isEmpty()) {
+        List<Long> sorted = new ArrayList(_leader._proposals.keySet());
+        Collections.sort(sorted);
+        for (long slotNum : sorted) {
+          try {
+            LOG.debug("Leader try to adopt pre-values: SN = " + slotNum);
+            acceptAndDecide(slotNum, _leader._proposals.get(slotNum));
+          } catch (TException e) {
+            LOG.error("Adopting a pre-value failed: " + e.getMessage());
+          }
+        }
+      }
       _leader._active.set(true);
     }
   }
 
   @Override
-  public TAcceptorPhaseOneResp AcceptorPhaseOne(TAcceptorPhaseOneReq req)
+  public TAcceptorPhaseOneResp AcceptorPhaseOne(TAcceptorPhaseOneReq aReq)
       throws TException {
-    return null;
+    if (compareBallotNums(aReq.getBallot_num(), _acceptor._ballotNum) > 0) {
+      _acceptor._ballotNum = aReq.getBallot_num();
+    }
+    return new TAcceptorPhaseOneResp(_acceptor._ballotNum, _acceptor.getAcceptVals());
   }
 
   @Override
-  public TAcceptorPhaseTwoResp AcceptorPhaseTwo(TAcceptorPhaseTwoReq req)
+  public TAcceptorPhaseTwoResp AcceptorPhaseTwo(TAcceptorPhaseTwoReq aReq)
       throws TException {
-    return null;
+    if (compareBallotNums(aReq.getBallot_num(), _acceptor._ballotNum) >= 0) {
+      _acceptor._ballotNum = aReq.getBallot_num();
+      _acceptor.addAcceptVal(
+        new TAcceptedValue(aReq.getBallot_num(), aReq.getSlot_num(), aReq.getOperation()));
+    }
+    return new TAcceptorPhaseTwoResp(_acceptor._ballotNum);
   }
 
   @Override
   public THeartbeatResp Heartbeat() throws TException {
     return null;
   }
-  
-  // if bn1 is greater than bn2, then return true
-  private boolean compareBallotNums(TBallotNum aBn1, TBallotNum aBn2) {
-    if ((aBn1.getId() > aBn2.getId()) || (aBn1.getId() == aBn2.getId() &&
+
+  // if bn1 is greater than bn2, then return 1
+  // if bn1 is equal to bn2, then return 0
+  // if bn1 is less than bn2, than return -1
+  static private int compareBallotNums(TBallotNum aBn1, TBallotNum aBn2) {
+    if (aBn1.getId() == aBn2.getId() &&
+        aBn1.getProposer().hostname.compareTo(aBn2.getProposer().hostname) == 0) {
+      return 0;
+    } else if ((aBn1.getId() > aBn2.getId()) || (aBn1.getId() == aBn2.getId() &&
         (aBn1.getProposer().hostname.compareTo(aBn2.getProposer().hostname) > 0))
-       ) {
-      return true;
+      ) {
+      return 1;
+    } else {
+      return -1;
     }
-    return false;
   }
 }
