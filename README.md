@@ -4,6 +4,7 @@ The next generation of database
 ## Multi-paxos
 Implemented multi-paxos for data replication and transaction control.
 
+```
 Message flow: Multi-Paxos Collapsed Roles, start
 (first instance with new leader)
 
@@ -26,3 +27,4 @@ Client      Servers
    |         |<-X--X  Accepted(N,I+1)
    |<--------X  |  |  Response
    |         |  |  |
+```
