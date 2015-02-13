@@ -2,12 +2,12 @@ package org.apache.nextsql.multipaxos;
 
 import org.apache.nextsql.multipaxos.thrift.*;
 import java.nio.charset.Charset;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.SynchronousQueue;
@@ -47,8 +47,8 @@ public class Replica implements ReplicaService.Iface {
   // must be atomic?
   private AtomicLong _slotNum = new AtomicLong(0);
   private AtomicLong _decisionSlotNum = new AtomicLong(1);
-  private Map<Long, TOperation> _proposals = new HashMap<Long, TOperation>();
-  private Map<Long, TOperation> _decisions = new HashMap<Long, TOperation>();
+  private ConcurrentHashMap<Long, TOperation> _proposals = new ConcurrentHashMap<Long, TOperation>();
+  private ConcurrentHashMap<Long, TOperation> _decisions = new ConcurrentHashMap<Long, TOperation>();
   private IStorage _storage = null;
   private Paxos _paxosProtocol = null;
   
@@ -126,7 +126,13 @@ public class Replica implements ReplicaService.Iface {
         execOpResps.add(_threadPool.submit(new ExecuteDupSlotOp(execOpReq)));
       }
       // execute the operation
-      perform(op, resp);
+      try {
+        resp.setData(perform(op));
+      } catch (StorageException e) {
+        resp.setStatus(new TStatus(TStatusCode.ERROR));
+        resp.getStatus().setError_message("Storage IO failure: " + e.getMessage());
+        return resp;
+      }
     }
     resp.setStatus(new TStatus(TStatusCode.SUCCESS));
     return resp;
@@ -138,14 +144,15 @@ public class Replica implements ReplicaService.Iface {
     return new TCompactProtocol(sTransport);
   }
   
-  private void perform(TOperation op, TExecuteOperationResp result) {
+  private String perform(TOperation op) throws StorageException {
+    String result = null;
     // check duplicated operation
     for (Map.Entry<Long, TOperation> entry: _decisions.entrySet()) {
       if (entry.getKey() < _decisionSlotNum.get() && entry.getValue().equals(op)) {
         LOG.debug("Skip performing duplicated operation. preSN = " + entry.getKey() +
           ", currSN = " + _decisionSlotNum.get());
         _decisionSlotNum.incrementAndGet();
-        return;
+        return result;
       }
     }
     // do operation
@@ -161,10 +168,10 @@ public class Replica implements ReplicaService.Iface {
               retry = 0;
             } catch (StorageException e) {
               LOG.error("Read operation failed: " + e.getMessage());
-              break;
+              throw e;
             }
             // we need to eliminate memcpys
-            result.data = new String(readbuf, Charset.forName("UTF-8"));
+            result = new String(readbuf, Charset.forName("UTF-8"));
             break;
           case OP_WRITE:
             try {
@@ -173,6 +180,7 @@ public class Replica implements ReplicaService.Iface {
               retry = 0;
             } catch (StorageException e) {
               LOG.error("Write operation failed" + e.getMessage());
+              throw e;
             }
             break;
           case OP_UPDATE:
@@ -183,18 +191,35 @@ public class Replica implements ReplicaService.Iface {
             break;
         }
       }
-      if (retry == 0) {
-        result.setStatus(new TStatus(TStatusCode.ERROR));
-        result.getStatus().setError_message("Storage I/O failure");
-      } else {
-        _decisionSlotNum.incrementAndGet();
-      }
+      _decisionSlotNum.incrementAndGet();
     }
+    return result;
   }
 
   @Override
-  public TDecisionResp Decision(TDecisionReq req) throws TException {
-    // TODO Auto-generated method stub
-    return null;
+  public TDecisionResp Decision(TDecisionReq aReq) throws TException {
+    LOG.debug("Decision is requested to the replica");
+    TDecisionResp resp = new TDecisionResp();
+    _decisions.put(aReq.getSlot_num(), aReq.getOperation());
+    for (TOperation op = _decisions.get(_decisionSlotNum); op != null
+        ; op = _decisions.get(_decisionSlotNum)) {
+      TOperation pop = _proposals.get(_decisionSlotNum);
+      if (pop != null && !pop.equals(op)) {
+        // need error handling?
+        TExecuteOperationReq execOpReq = new TExecuteOperationReq(pop);
+        Set<Future<TExecuteOperationResp>> execOpResps = new HashSet<Future<TExecuteOperationResp>>();
+        execOpResps.add(_threadPool.submit(new ExecuteDupSlotOp(execOpReq)));
+      }
+      // execute the operation
+      try {
+        perform(op);
+      } catch (StorageException e) {
+        resp.setStatus(new TStatus(TStatusCode.ERROR));
+        resp.getStatus().setError_message("Storage IO failure: " + e.getMessage());
+        return resp;
+      }
+    }
+    resp.setStatus(new TStatus(TStatusCode.SUCCESS));
+    return resp;
   }
 }

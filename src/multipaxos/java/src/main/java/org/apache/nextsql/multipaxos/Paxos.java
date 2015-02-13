@@ -122,16 +122,25 @@ public class Paxos implements PaxosService.Iface {
   public TLeaderProposeResp LeaderPropose(TLeaderProposeReq aReq)
       throws TException {
     LOG.debug("LeaderPropose is requested.");
-    TLeaderProposeResp resp = new TLeaderProposeResp(new TStatus(), aReq.getBallot_num());
-    try {
-      proposeAndAdopt(aReq.getBallot_num());
-    } catch (TException e) {
-      LOG.error("LeaderPropose failure: " + e.getMessage());
-      resp.getStatus().setStatus_code(TStatusCode.ERROR);
-      resp.getStatus().setError_message("LeaderPropose failure: " + e.getMessage());
-      return resp;
+    TLeaderProposeResp resp = new TLeaderProposeResp();
+    if (compareBallotNums(aReq.getBallot_num(), _leader.getBallotNum()) > 0) {
+      _leader.setBallotNum(aReq.getBallot_num());
+      try {
+        proposeAndAdopt(aReq.getBallot_num());
+      } catch (TException e) {
+        LOG.error("LeaderPropose failure: " + e.getMessage());
+        resp.getStatus().setStatus_code(TStatusCode.ERROR);
+        resp.setBallot_num(_leader.getBallotNum());
+        resp.getStatus().setError_message("LeaderPropose failure: " + e.getMessage());
+        return resp;
+      }
+      resp.getStatus().setStatus_code(TStatusCode.SUCCESS);
+    } else {
+      LOG.error("LeaderPropose failure: the requested BN is smaller than leader's BN");
+      resp.setStatus(new TStatus(TStatusCode.ERROR));
+      resp.setBallot_num(_leader.getBallotNum());
+      resp.getStatus().setError_message("LeaderPropose failure: the requested BN is smaller than leader's BN");
     }
-    resp.getStatus().setStatus_code(TStatusCode.SUCCESS);
     return resp;
   }
 
@@ -155,7 +164,7 @@ public class Paxos implements PaxosService.Iface {
   }
   
   private void acceptAndDecide(long aSlotNum, TOperation aOp) throws TException {
-    TAcceptorPhaseTwoReq p2aReq = new TAcceptorPhaseTwoReq(_leader._ballotNum,
+    TAcceptorPhaseTwoReq p2aReq = new TAcceptorPhaseTwoReq(_leader.getBallotNum(),
         aSlotNum, aOp);
     Set<Future<TAcceptorPhaseTwoResp>> p2bResps = new HashSet<Future<TAcceptorPhaseTwoResp>>();
     // send p2a msg to acceptors
@@ -216,21 +225,19 @@ public class Paxos implements PaxosService.Iface {
   
   private TAcceptorPhaseOneResp preempted(TBallotNum aBallotNum) throws TException {
     TAcceptorPhaseOneResp p1aResp = null;
-    if (compareBallotNums(aBallotNum, _leader._ballotNum) > 0) {
+    if (compareBallotNums(aBallotNum, _leader.getBallotNum()) > 0) {
       _leader._active.set(false);
-      synchronized (_leader._ballotNum) {
-        ++_leader._ballotNum.id;
-      }
-      LOG.info("Leader increase the BN to " + _leader._ballotNum.id + ":" +
-        _leader._ballotNum.getProposer().hostname);
-      proposeAndAdopt(_leader._ballotNum);
+      _leader.increaseAndGetBN();
+      LOG.info("Leader increase the BN to " + _leader.getBallotNum().id + ":" +
+        _leader.getBallotNum().getProposer().hostname);
+      proposeAndAdopt(_leader.getBallotNum());
     }
     return p1aResp;
   }
   
   // propose the new ballot
   private void proposeAndAdopt(TBallotNum aBallotNum) throws TException {
-    TAcceptorPhaseOneReq p1aReq = new TAcceptorPhaseOneReq(_leader._ballotNum);
+    TAcceptorPhaseOneReq p1aReq = new TAcceptorPhaseOneReq(aBallotNum);
     Set<Future<TAcceptorPhaseOneResp>> p1bResps = new HashSet<Future<TAcceptorPhaseOneResp>>();
     // send p1a msg to acceptors
     for (TNetworkAddress acc: _acceptorLocs) {
@@ -294,7 +301,7 @@ public class Paxos implements PaxosService.Iface {
       }
       // adopt pre-values
       if (!_leader._proposals.isEmpty()) {
-        List<Long> sorted = new ArrayList(_leader._proposals.keySet());
+        List<Long> sorted = new ArrayList<Long>(_leader._proposals.keySet());
         Collections.sort(sorted);
         for (long slotNum : sorted) {
           try {
@@ -312,21 +319,25 @@ public class Paxos implements PaxosService.Iface {
   @Override
   public TAcceptorPhaseOneResp AcceptorPhaseOne(TAcceptorPhaseOneReq aReq)
       throws TException {
-    if (compareBallotNums(aReq.getBallot_num(), _acceptor._ballotNum) > 0) {
-      _acceptor._ballotNum = aReq.getBallot_num();
+    TBallotNum bn = _acceptor.getBallotNum();
+    if (compareBallotNums(aReq.getBallot_num(), bn) > 0) {
+      _acceptor.setBallotNum(aReq.getBallot_num());
+      bn = aReq.getBallot_num();
     }
-    return new TAcceptorPhaseOneResp(_acceptor._ballotNum, _acceptor.getAcceptVals());
+    return new TAcceptorPhaseOneResp(bn, _acceptor.getAcceptVals());
   }
 
   @Override
   public TAcceptorPhaseTwoResp AcceptorPhaseTwo(TAcceptorPhaseTwoReq aReq)
       throws TException {
-    if (compareBallotNums(aReq.getBallot_num(), _acceptor._ballotNum) >= 0) {
-      _acceptor._ballotNum = aReq.getBallot_num();
+    TBallotNum bn = _acceptor.getBallotNum();
+    if (compareBallotNums(aReq.getBallot_num(), bn) >= 0) {
+      _acceptor.setBallotNum(aReq.getBallot_num());
       _acceptor.addAcceptVal(
         new TAcceptedValue(aReq.getBallot_num(), aReq.getSlot_num(), aReq.getOperation()));
+      bn = aReq.getBallot_num();
     }
-    return new TAcceptorPhaseTwoResp(_acceptor._ballotNum);
+    return new TAcceptorPhaseTwoResp(bn);
   }
 
   @Override
