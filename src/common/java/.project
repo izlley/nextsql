@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>multipaxos-java</name>
+	<name>common</name>
 	<comment></comment>
 	<projects>
-		<project>common</project>
+		<project>multipaxos-java</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
@@ -23,14 +23,9 @@
 	</natures>
 	<linkedResources>
 		<link>
-			<name>java</name>
+			<name>src</name>
 			<type>2</type>
-			<location>/home/leejy/work/nextsql/src/multipaxos/java/src/main/java</location>
-		</link>
-		<link>
-			<name>thrift</name>
-			<type>2</type>
-			<location>/home/leejy/work/nextsql/src/common/thrift</location>
+			<location>/home/leejy/work/nextsql/src/common/java/src</location>
 		</link>
 	</linkedResources>
 </projectDescription>

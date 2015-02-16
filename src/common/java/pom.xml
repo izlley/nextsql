@@ -6,8 +6,8 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
   <modelVersion>4.0.0</modelVersion>
-  <groupId>org.apache.nextsql.server-java</groupId>
-  <artifactId>server-java</artifactId>
+  <groupId>org.apache.nextsql.common-java</groupId>
+  <artifactId>common-java</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <build>
     <directory>${project.basedir}/../../build</directory>
@@ -15,19 +15,9 @@
   </build>
   <dependencies>
     <dependency>
-      <groupId>org.apache.thrift</groupId>
-      <artifactId>libthrift</artifactId>
-      <version>${libthrift.version}</version>
-    </dependency>
-    <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
       <version>${guava.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.codehaus.jackson</groupId>
-      <artifactId>jackson-core-asl</artifactId>
-      <version>${jackson.version}</version>
     </dependency>
   </dependencies>
 </project>

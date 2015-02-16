@@ -34,33 +34,16 @@
       </plugin>
     </plugins>
   </build>
-  <repositories>
-    <repository>
-      <id>apache</id>
-      <url>https://repository.apache.org/content/repositories/</url>
-    </repository>
-    <repository>
-      <id>maven-repository</id>
-      <name>maven-repository.com</name>
-      <url>http://maven-repository.com</url>
-      <releases>
-        <enabled>true</enabled>
-      </releases>
-      <snapshots>
-        <enabled>true</enabled>
-      </snapshots>
-    </repository>
-  </repositories>
   <dependencies>
     <dependency>
       <groupId>org.apache.thrift</groupId>
       <artifactId>libthrift</artifactId>
-      <version>0.9.1</version>
+      <version>${libthrift.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.thrift.tools</groupId>
       <artifactId>maven-thrift-plugin</artifactId>
       <version>0.1.11</version>
-    </dependency>
+      </dependency>
   </dependencies>
 </project>

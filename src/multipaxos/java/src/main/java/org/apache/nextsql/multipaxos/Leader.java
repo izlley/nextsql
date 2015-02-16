@@ -8,7 +8,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.nextsql.multipaxos.thrift.TBallotNum;
 import org.apache.nextsql.multipaxos.thrift.TNetworkAddress;
 import org.apache.nextsql.multipaxos.thrift.TOperation;
-import org.apache.nextsql.util.SystemInfo;
+import org.apache.nextsql.multipaxos.util.SystemInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

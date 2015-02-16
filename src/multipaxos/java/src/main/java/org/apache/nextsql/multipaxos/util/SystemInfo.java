@@ -1,4 +1,4 @@
-package org.apache.nextsql.util;
+package org.apache.nextsql.multipaxos.util;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;

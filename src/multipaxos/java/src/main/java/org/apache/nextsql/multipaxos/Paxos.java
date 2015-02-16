@@ -17,7 +17,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.nextsql.multipaxos.thrift.*;
-import org.apache.nextsql.util.SystemInfo;
+import org.apache.nextsql.multipaxos.util.SystemInfo;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TProtocol;
 import org.slf4j.Logger;
