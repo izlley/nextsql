@@ -1,6 +1,6 @@
 package org.apache.nextsql.storage;
 
-import org.apache.nextsql.server.NextSqlException;
+import org.apache.nextsql.common.NextSqlException;
 
 public class StorageException extends NextSqlException {
   public StorageException(String msg, Throwable cause) {

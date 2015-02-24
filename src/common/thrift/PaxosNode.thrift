@@ -30,7 +30,8 @@ struct TAcceptedValue {
 // LeaderPropose()
 //
 struct TLeaderProposeReq {
-  1: required TBallotNum ballot_num
+  1: required i64 blockId
+  2: required TBallotNum ballot_num
 }
 
 struct TLeaderProposeResp {
@@ -42,20 +43,23 @@ struct TLeaderProposeResp {
 // AcceptorPhaseOne()
 //
 struct TAcceptorPhaseOneReq {
-  1: required TBallotNum ballot_num
+  1: required i64 blockId
+  2: required TBallotNum ballot_num
 }
 
 struct TAcceptorPhaseOneResp {
-  1: required TBallotNum ballot_num
-  2: list<TAcceptedValue> accepted_values
+  1: required Status.TStatus status
+  2: required TBallotNum ballot_num
+  3: required list<TAcceptedValue> accepted_values
 }
 
 //
 // LeaderAccept()
 //
 struct TLeaderAcceptReq {
-  1: required i64 slot_num
-  2: required Operation.TOperation operation
+  1: required i64 blockId
+  2: required i64 slot_num
+  3: required Operation.TOperation operation
 }
 
 struct TLeaderAcceptResp {
@@ -66,13 +70,15 @@ struct TLeaderAcceptResp {
 // AcceptorPhaseTwo()
 //
 struct TAcceptorPhaseTwoReq {
-  1: required TBallotNum ballot_num
-  2: required i64 slot_num
-  3: required Operation.TOperation operation
+  1: required i64 blockId
+  2: required TBallotNum ballot_num
+  3: required i64 slot_num
+  4: required Operation.TOperation operation
 }
 
 struct TAcceptorPhaseTwoResp {
-  1: required TBallotNum ballot_num
+  1: required Status.TStatus status
+  2: required TBallotNum ballot_num
 }
 
 //

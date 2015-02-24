@@ -23,7 +23,7 @@ import org.apache.thrift.protocol.TProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Paxos implements PaxosService.Iface {
+public class Paxos {
   private static final Logger LOG = LoggerFactory.getLogger(Paxos.class);
   
   private static ExecutorService _threadPool = new ThreadPoolExecutor(
@@ -53,9 +53,10 @@ public class Paxos implements PaxosService.Iface {
       switch (_type) {
         case P1A:
         {
+          TAcceptorPhaseOneReq req = (TAcceptorPhaseOneReq)_msg;
           TAcceptorPhaseOneResp resp = null;
           if (_self) {
-            resp = AcceptorPhaseOne((TAcceptorPhaseOneReq)_msg);
+            resp = AcceptorPhaseOne(req.ballot_num);
           } else {
             TProtocol acceptorProtocol = Replica.getProtocol(_dest);
             acceptorProtocol.getTransport().open();
@@ -69,9 +70,10 @@ public class Paxos implements PaxosService.Iface {
         }
         case P2A:
         {
+          TAcceptorPhaseTwoReq req = (TAcceptorPhaseTwoReq)_msg;
           TAcceptorPhaseTwoResp resp = null;
           if (_self) {
-            resp = AcceptorPhaseTwo((TAcceptorPhaseTwoReq)_msg);
+            resp = AcceptorPhaseTwo(req.ballot_num, req.slot_num, req.operation);
           } else {
             TProtocol acceptorProtocol = Replica.getProtocol(_dest);
             acceptorProtocol.getTransport().open();
@@ -118,15 +120,14 @@ public class Paxos implements PaxosService.Iface {
     this._acceptor = new Acceptor();
   }
 
-  @Override
-  public TLeaderProposeResp LeaderPropose(TLeaderProposeReq aReq)
+  public TLeaderProposeResp LeaderPropose(long aBlkId, TBallotNum aBn)
       throws TException {
     LOG.debug("LeaderPropose is requested.");
     TLeaderProposeResp resp = new TLeaderProposeResp();
-    if (compareBallotNums(aReq.getBallot_num(), _leader.getBallotNum()) > 0) {
-      _leader.setBallotNum(aReq.getBallot_num());
+    if (compareBallotNums(aBn, _leader.getBallotNum()) > 0) {
+      _leader.setBallotNum(aBn);
       try {
-        proposeAndAdopt(aReq.getBallot_num());
+        proposeAndAdopt(aBlkId, aBn);
       } catch (TException e) {
         LOG.error("LeaderPropose failure: " + e.getMessage());
         resp.getStatus().setStatus_code(TStatusCode.ERROR);
@@ -144,27 +145,26 @@ public class Paxos implements PaxosService.Iface {
     return resp;
   }
 
-  @Override
-  public TLeaderAcceptResp LeaderAccept(TLeaderAcceptReq aReq) throws TException {
+  public TLeaderAcceptResp LeaderAccept(long aBlkId, long aSlotNum, TOperation aOp) throws TException {
     LOG.debug("LeaderAccept is requested");
     TLeaderAcceptResp resp = new TLeaderAcceptResp();
     // check duplicated operation
-    if (_leader._proposals.containsKey(aReq.getSlot_num())) {
+    if (_leader._proposals.containsKey(aSlotNum)) {
       resp.setStatus(new TStatus(TStatusCode.ERROR));
       resp.getStatus().setError_message("Slot_num has already occupied at leader");
       return resp;
     }
     // add to leader's proposals map
-    _leader._proposals.put(aReq.getSlot_num(), aReq.getOperation());
+    _leader._proposals.put(aSlotNum, aOp);
     if (_leader._active.get()) {
-      acceptAndDecide(aReq.getSlot_num(), aReq.getOperation());
+      acceptAndDecide(aBlkId, aSlotNum, aOp);
     }
     resp.setStatus(new TStatus(TStatusCode.SUCCESS));
     return resp;
   }
   
-  private void acceptAndDecide(long aSlotNum, TOperation aOp) throws TException {
-    TAcceptorPhaseTwoReq p2aReq = new TAcceptorPhaseTwoReq(_leader.getBallotNum(),
+  private void acceptAndDecide(long aBlkId, long aSlotNum, TOperation aOp) throws TException {
+    TAcceptorPhaseTwoReq p2aReq = new TAcceptorPhaseTwoReq(aBlkId, _leader.getBallotNum(),
         aSlotNum, aOp);
     Set<Future<TAcceptorPhaseTwoResp>> p2bResps = new HashSet<Future<TAcceptorPhaseTwoResp>>();
     // send p2a msg to acceptors
@@ -210,9 +210,9 @@ public class Paxos implements PaxosService.Iface {
     }
     if (preempted && p2bResp != null) {
       // another leader is elected?
-      TAcceptorPhaseOneResp p1aResp = preempted(p2bResp.getBallot_num());
+      TAcceptorPhaseOneResp p1aResp = preempted(aBlkId, p2bResp.getBallot_num());
     } else {
-      TDecisionReq decisionReq = new TDecisionReq(aSlotNum, aOp);
+      TDecisionReq decisionReq = new TDecisionReq(aBlkId, aSlotNum, aOp);
       Set<Future<TDecisionResp>> decisionResps = new HashSet<Future<TDecisionResp>>();
       // send a decision msg to remote replicas
       for (TNetworkAddress replicaLoc: _replica._replicaLocs) {
@@ -223,21 +223,21 @@ public class Paxos implements PaxosService.Iface {
     }
   }
   
-  private TAcceptorPhaseOneResp preempted(TBallotNum aBallotNum) throws TException {
+  private TAcceptorPhaseOneResp preempted(long aBlkId, TBallotNum aBallotNum) throws TException {
     TAcceptorPhaseOneResp p1aResp = null;
     if (compareBallotNums(aBallotNum, _leader.getBallotNum()) > 0) {
       _leader._active.set(false);
       _leader.increaseAndGetBN();
       LOG.info("Leader increase the BN to " + _leader.getBallotNum().id + ":" +
         _leader.getBallotNum().getProposer().hostname);
-      proposeAndAdopt(_leader.getBallotNum());
+      proposeAndAdopt(aBlkId, _leader.getBallotNum());
     }
     return p1aResp;
   }
   
   // propose the new ballot
-  private void proposeAndAdopt(TBallotNum aBallotNum) throws TException {
-    TAcceptorPhaseOneReq p1aReq = new TAcceptorPhaseOneReq(aBallotNum);
+  private void proposeAndAdopt(long aBlkId, TBallotNum aBallotNum) throws TException {
+    TAcceptorPhaseOneReq p1aReq = new TAcceptorPhaseOneReq(aBlkId, aBallotNum);
     Set<Future<TAcceptorPhaseOneResp>> p1bResps = new HashSet<Future<TAcceptorPhaseOneResp>>();
     // send p1a msg to acceptors
     for (TNetworkAddress acc: _acceptorLocs) {
@@ -262,7 +262,7 @@ public class Paxos implements PaxosService.Iface {
             p1bResp = res.get();
             if (p1bResp != null) {
               LOG.debug("Leader get p1b msg from aceptor");
-              if (p1bResp.getBallot_num().equals(p1aReq.getBallot_num())) {
+              if (p1bResp.getBallot_num().equals(aBallotNum)) {
                 for (TAcceptedValue e: p1bResp.getAccepted_values()) {
                   if (!pvalues.containsKey(e.slot_num)) {
                     pvalues.put(e.slot_num, e);
@@ -277,7 +277,7 @@ public class Paxos implements PaxosService.Iface {
                 it.remove();
               } else {
                 LOG.info("Leader enter preempted mode. reqBN = " + 
-                  p1aReq.getBallot_num().id + ":" + p1aReq.getBallot_num().getProposer().hostname +
+                  aBallotNum.id + ":" + aBallotNum.getProposer().hostname +
                   ", respBN = " + p1bResp.getBallot_num().id + ":" + p1bResp.getBallot_num().getProposer().hostname);
                 preempted = true;
                 break;
@@ -293,7 +293,7 @@ public class Paxos implements PaxosService.Iface {
     }
     if (preempted && p1bResp != null) {
       // another leader is elected?
-      TAcceptorPhaseOneResp p1aResp = preempted(p1bResp.getBallot_num());
+      TAcceptorPhaseOneResp p1aResp = preempted(aBlkId, p1bResp.getBallot_num());
     } else {
       // update proposals map
       for (TAcceptedValue e: pvalues.values()) {
@@ -306,7 +306,7 @@ public class Paxos implements PaxosService.Iface {
         for (long slotNum : sorted) {
           try {
             LOG.debug("Leader try to adopt pre-values: SN = " + slotNum);
-            acceptAndDecide(slotNum, _leader._proposals.get(slotNum));
+            acceptAndDecide(aBlkId, slotNum, _leader._proposals.get(slotNum));
           } catch (TException e) {
             LOG.error("Adopting a pre-value failed: " + e.getMessage());
           }
@@ -316,31 +316,30 @@ public class Paxos implements PaxosService.Iface {
     }
   }
 
-  @Override
-  public TAcceptorPhaseOneResp AcceptorPhaseOne(TAcceptorPhaseOneReq aReq)
+  public TAcceptorPhaseOneResp AcceptorPhaseOne(TBallotNum aBn)
       throws TException {
     TBallotNum bn = _acceptor.getBallotNum();
-    if (compareBallotNums(aReq.getBallot_num(), bn) > 0) {
-      _acceptor.setBallotNum(aReq.getBallot_num());
-      bn = aReq.getBallot_num();
+    if (compareBallotNums(aBn, bn) > 0) {
+      _acceptor.setBallotNum(aBn);
+      bn = aBn;
     }
-    return new TAcceptorPhaseOneResp(bn, _acceptor.getAcceptVals());
+    TAcceptorPhaseOneResp resp = new TAcceptorPhaseOneResp(new TStatus(), bn, _acceptor.getAcceptVals());
+    return resp;
   }
 
-  @Override
-  public TAcceptorPhaseTwoResp AcceptorPhaseTwo(TAcceptorPhaseTwoReq aReq)
+  public TAcceptorPhaseTwoResp AcceptorPhaseTwo(TBallotNum aBn, long aSlotNum, TOperation aOp)
       throws TException {
     TBallotNum bn = _acceptor.getBallotNum();
-    if (compareBallotNums(aReq.getBallot_num(), bn) >= 0) {
-      _acceptor.setBallotNum(aReq.getBallot_num());
+    if (compareBallotNums(aBn, bn) >= 0) {
+      _acceptor.setBallotNum(aBn);
       _acceptor.addAcceptVal(
-        new TAcceptedValue(aReq.getBallot_num(), aReq.getSlot_num(), aReq.getOperation()));
-      bn = aReq.getBallot_num();
+        new TAcceptedValue(aBn, aSlotNum, aOp));
+      bn = aBn;
     }
-    return new TAcceptorPhaseTwoResp(bn);
+    TAcceptorPhaseTwoResp resp = new TAcceptorPhaseTwoResp(new TStatus(), bn);
+    return resp;
   }
 
-  @Override
   public THeartbeatResp Heartbeat() throws TException {
     return null;
   }

@@ -1,5 +1,6 @@
 package org.apache.nextsql.multipaxos;
-import org.apache.nextsql.server.NextSqlException;
+
+import org.apache.nextsql.common.NextSqlException;
 
 public class MultiPaxosException extends NextSqlException {
   public MultiPaxosException(String msg, Throwable cause) {

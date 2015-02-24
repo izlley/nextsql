@@ -1,6 +1,8 @@
 package org.apache.nextsql.multipaxos;
 
 import org.apache.nextsql.multipaxos.thrift.*;
+import org.apache.nextsql.multipaxos.util.SystemInfo;
+
 import java.nio.charset.Charset;
 import java.util.HashSet;
 import java.util.List;
@@ -25,14 +27,15 @@ import org.apache.thrift.transport.TSocket;
 import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
 
-public class Replica implements ReplicaService.Iface {
+public class Replica {
   private static final Logger LOG = LoggerFactory.getLogger(Replica.class);
   
   private static ExecutorService _threadPool = new ThreadPoolExecutor(
       2, 36, 60L, TimeUnit.SECONDS, new SynchronousQueue<Runnable>());
   private boolean _leader = false;
-  private long _blockid;
-  private TNetworkAddress _leaderLoc;
+  private long _blockId;
+  private long _replicaId;
+  private int _leaderInd;
   protected List<TNetworkAddress> _replicaLocs;
   private long _size = 0;
   
@@ -53,34 +56,38 @@ public class Replica implements ReplicaService.Iface {
   private Paxos _paxosProtocol = null;
   
   private class ExecuteDupSlotOp implements Callable {
-    private TExecuteOperationReq _param;
-    public ExecuteDupSlotOp(TExecuteOperationReq aParam) {
-      this._param = aParam;
+    private long _blkId;
+    private TOperation _op;
+    public ExecuteDupSlotOp(long aBlkId, TOperation aOp) {
+      this._blkId = aBlkId;
+      this._op = aOp;
     }
     @Override
     public Object call() throws Exception {
-      return ExecuteOperation(_param);
+      return ExecuteOperation(_blkId, _op);
     }
   }
   
-  public Replica(long aBlkId, List<TNetworkAddress> aLocs, boolean aLeader,
-      TNetworkAddress aLeaderAddr, IStorage aStorage) throws MultiPaxosException {
-    this._blockid = aBlkId;
-    this._leaderLoc = aLeaderAddr;
+  public Replica(long aBlkId, List<TNetworkAddress> aLocs, int aLeaderInd,
+      IStorage aStorage) throws MultiPaxosException {
+    this._blockId = aBlkId;
+    this._leaderInd = aLeaderInd;
     this._replicaLocs = aLocs;
-    this._leader = aLeader;
+    this._leader = aLocs.get(aLeaderInd).equals(SystemInfo.getNetworkAddress());
+    // TODO: gen replica id
+    // this._replicaId = 
     this._storage = aStorage;
     // replica, leader, acceptor are co-located
     this._paxosProtocol = new Paxos(this, aLocs);
   }
   
-  @Override
-  public TExecuteOperationResp ExecuteOperation(TExecuteOperationReq aReq)
+  public TExecuteOperationResp ExecuteOperation(long aBlkId, TOperation aOp)
       throws TException {
     LOG.debug("ExecuteOperation is requested to the replica");
     TExecuteOperationResp resp = new TExecuteOperationResp();
     // check duplicated operation
-    if (_decisions.containsValue(aReq.getOperation())) {
+    if (_decisions.containsValue(aOp)) {
+      LOG.error("Duplicated operation is requested to replica");
       resp.setStatus(new TStatus(TStatusCode.ERROR));
       resp.getStatus().setError_message("Duplicated operation is requested to replica");
       return resp;
@@ -92,19 +99,18 @@ public class Replica implements ReplicaService.Iface {
     long newSlotNum = _slotNum.incrementAndGet();
     LOG.debug("The replica propose a new SN = " + newSlotNum);
     // add to proposals map
-    _proposals.put(newSlotNum, aReq.getOperation());
+    _proposals.put(newSlotNum, aOp);
     // send accept msg to the leader
-    TLeaderAcceptReq acceptReq = new TLeaderAcceptReq(newSlotNum,
-        aReq.getOperation());
     TLeaderAcceptResp acceptResp = null;
-    if (_leader) {
-      acceptResp = _paxosProtocol.LeaderAccept(acceptReq);
+    // TODO: read op can request to any replica
+    if (_leader) { // || aOp.getOperation_type() == TOpType.OP_READ) {
+      acceptResp = _paxosProtocol.LeaderAccept(aBlkId, newSlotNum, aOp);
     } else {
-      TProtocol leaderProtocol = getProtocol(_leaderLoc);
+      TProtocol leaderProtocol = getProtocol(_replicaLocs.get(_leaderInd));
       leaderProtocol.getTransport().open();
       PaxosService.Iface client = new PaxosService.Client(leaderProtocol);
       if (client != null) {
-        acceptResp = client.LeaderAccept(acceptReq);
+        acceptResp = client.LeaderAccept(new TLeaderAcceptReq(aBlkId, newSlotNum, aOp));
       }// else exception
       leaderProtocol.getTransport().close();
     }
@@ -115,15 +121,14 @@ public class Replica implements ReplicaService.Iface {
     ////////////////////
     // Decision phase
     ////////////////////
-    _decisions.put(newSlotNum, aReq.getOperation());
+    _decisions.put(newSlotNum, aOp);
     for (TOperation op = _decisions.get(_decisionSlotNum); op != null
         ; op = _decisions.get(_decisionSlotNum)) {
       TOperation pop = _proposals.get(_decisionSlotNum);
       if (pop != null && !pop.equals(op)) {
         // need error handling?
-        TExecuteOperationReq execOpReq = new TExecuteOperationReq(pop);
         Set<Future<TExecuteOperationResp>> execOpResps = new HashSet<Future<TExecuteOperationResp>>();
-        execOpResps.add(_threadPool.submit(new ExecuteDupSlotOp(execOpReq)));
+        execOpResps.add(_threadPool.submit(new ExecuteDupSlotOp(aBlkId, pop)));
       }
       // execute the operation
       try {
@@ -196,19 +201,18 @@ public class Replica implements ReplicaService.Iface {
     return result;
   }
 
-  @Override
-  public TDecisionResp Decision(TDecisionReq aReq) throws TException {
+  public TDecisionResp Decision(long aBlkId, long aSlotNum, TOperation aOp) throws TException {
     LOG.debug("Decision is requested to the replica");
     TDecisionResp resp = new TDecisionResp();
-    _decisions.put(aReq.getSlot_num(), aReq.getOperation());
+    _decisions.put(aSlotNum, aOp);
     for (TOperation op = _decisions.get(_decisionSlotNum); op != null
         ; op = _decisions.get(_decisionSlotNum)) {
       TOperation pop = _proposals.get(_decisionSlotNum);
       if (pop != null && !pop.equals(op)) {
         // need error handling?
-        TExecuteOperationReq execOpReq = new TExecuteOperationReq(pop);
+        // what if it's read op?
         Set<Future<TExecuteOperationResp>> execOpResps = new HashSet<Future<TExecuteOperationResp>>();
-        execOpResps.add(_threadPool.submit(new ExecuteDupSlotOp(execOpReq)));
+        execOpResps.add(_threadPool.submit(new ExecuteDupSlotOp(aBlkId, pop)));
       }
       // execute the operation
       try {

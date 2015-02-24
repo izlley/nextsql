@@ -6,8 +6,8 @@ public class NextSqlConfiguration extends Configuration {
   static {
     addDeprecatedKeys();
     // adds the default resources
-    Configuration.addDefaultResource("qc-default.xml");
-    Configuration.addDefaultResource("qc-site.xml");
+    Configuration.addDefaultResource("ns-default.xml");
+    Configuration.addDefaultResource("ns-site.xml");
   }
   
   public NextSqlConfiguration() {
