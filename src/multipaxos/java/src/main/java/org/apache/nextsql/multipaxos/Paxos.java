@@ -318,9 +318,14 @@ public class Paxos {
 
   public TAcceptorPhaseOneResp AcceptorPhaseOne(TBallotNum aBn)
       throws TException {
+    LOG.debug("AcceptorPhaseOne is requested in Paxos: BN = " +
+      aBn.id + "-" + aBn.proposer.hostname);
     TBallotNum bn = _acceptor.getBallotNum();
     if (compareBallotNums(aBn, bn) > 0) {
+      // TODO: need logging to stable storage
       _acceptor.setBallotNum(aBn);
+      LOG.info("Acceptor's BN is updated on P1A: from = " +
+        bn.id + "-" + bn.proposer.hostname + ", to = " + aBn.id + "-" + aBn.proposer.hostname);
       bn = aBn;
     }
     TAcceptorPhaseOneResp resp = new TAcceptorPhaseOneResp(new TStatus(), bn, _acceptor.getAcceptVals());
@@ -329,11 +334,17 @@ public class Paxos {
 
   public TAcceptorPhaseTwoResp AcceptorPhaseTwo(TBallotNum aBn, long aSlotNum, TOperation aOp)
       throws TException {
+    LOG.debug("AcceptorPhaseTwo is requested in Paxos: BN = " +
+      aBn.id + "-" + aBn.proposer.hostname + ", SN = " + aSlotNum);
     TBallotNum bn = _acceptor.getBallotNum();
     if (compareBallotNums(aBn, bn) >= 0) {
+      // TODO: need logging to stable storage
       _acceptor.setBallotNum(aBn);
       _acceptor.addAcceptVal(
         new TAcceptedValue(aBn, aSlotNum, aOp));
+      LOG.info("Acceptor accept the requested value on P2A: BN = " +
+        aBn.id + "-" + aBn.proposer.hostname + ", SN = " + aSlotNum +
+        ", OPType = " + aOp.getOperation_type());
       bn = aBn;
     }
     TAcceptorPhaseTwoResp resp = new TAcceptorPhaseTwoResp(new TStatus(), bn);

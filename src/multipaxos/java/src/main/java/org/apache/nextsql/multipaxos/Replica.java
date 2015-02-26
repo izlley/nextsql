@@ -33,7 +33,7 @@ public class Replica {
   private static ExecutorService _threadPool = new ThreadPoolExecutor(
       2, 36, 60L, TimeUnit.SECONDS, new SynchronousQueue<Runnable>());
   private boolean _leader = false;
-  private long _blockId;
+  private final long _blockId;
   private long _replicaId;
   private int _leaderInd;
   protected List<TNetworkAddress> _replicaLocs;
@@ -52,8 +52,8 @@ public class Replica {
   private AtomicLong _decisionSlotNum = new AtomicLong(1);
   private ConcurrentHashMap<Long, TOperation> _proposals = new ConcurrentHashMap<Long, TOperation>();
   private ConcurrentHashMap<Long, TOperation> _decisions = new ConcurrentHashMap<Long, TOperation>();
-  private IStorage _storage = null;
-  private Paxos _paxosProtocol = null;
+  private final IStorage _storage;
+  private final Paxos _paxosProtocol;
   
   private class ExecuteDupSlotOp implements Callable {
     private long _blkId;
@@ -81,9 +81,13 @@ public class Replica {
     this._paxosProtocol = new Paxos(this, aLocs);
   }
   
+  public Paxos getPaxos() {
+    return _paxosProtocol;
+  }
+  
   public TExecuteOperationResp ExecuteOperation(long aBlkId, TOperation aOp)
       throws TException {
-    LOG.debug("ExecuteOperation is requested to the replica");
+    LOG.debug("ExecuteOperation is requested to the replica: blkid = " + aBlkId);
     TExecuteOperationResp resp = new TExecuteOperationResp();
     // check duplicated operation
     if (_decisions.containsValue(aOp)) {

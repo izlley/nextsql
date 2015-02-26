@@ -5,7 +5,7 @@ namespace cpp nextsql.thrift
 enum TOpType {
   OP_READ,
   OP_WRITE,
-  OP_CREATE,
+  OP_OPEN,
   OP_REMOVE,
   OP_UPDATE,
   OP_GETMETA,
@@ -16,8 +16,7 @@ struct TOperation {
   1: required i64 session_id
   2: required i64 operation_handle
   3: required TOpType operation_type
-  4: required i64 block_id
-  5: optional string data
-  6: optional i64 offset
-  7: optional i64 size
+  4: optional string data
+  5: optional i64 offset
+  6: optional i64 size
 }

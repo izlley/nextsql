@@ -6,7 +6,6 @@ import org.apache.nextsql.multipaxos.thrift.TAcceptorPhaseOneReq;
 import org.apache.nextsql.multipaxos.thrift.TAcceptorPhaseOneResp;
 import org.apache.nextsql.multipaxos.thrift.TAcceptorPhaseTwoReq;
 import org.apache.nextsql.multipaxos.thrift.TAcceptorPhaseTwoResp;
-import org.apache.nextsql.multipaxos.thrift.TExecuteOperationResp;
 import org.apache.nextsql.multipaxos.thrift.THeartbeatResp;
 import org.apache.nextsql.multipaxos.thrift.TLeaderAcceptReq;
 import org.apache.nextsql.multipaxos.thrift.TLeaderAcceptResp;
@@ -34,36 +33,57 @@ public class PaxosTServer implements PaxosService.Iface {
       LOG.error("The blockId(" + aReq.blockId + "is unknown");
       TAcceptorPhaseOneResp resp =
         new TAcceptorPhaseOneResp(new TStatus(TStatusCode.ERROR), null, null);
-      resp.getStatus().setError_message("The file(" + aReq.blockId + "is unknown");
+      resp.getStatus().setError_message("The bolckId(" + aReq.blockId + "is unknown");
       return resp;
     }
-    return null;
+    return rep.getPaxos().AcceptorPhaseOne(aReq.ballot_num);
   }
 
   @Override
   public TAcceptorPhaseTwoResp AcceptorPhaseTwo(TAcceptorPhaseTwoReq aReq)
       throws TException {
-    // TODO Auto-generated method stub
-    return null;
+    Replica rep = _blkMgr.getReplicafromBlkID(aReq.blockId);
+    if (rep == null) {
+      LOG.error("The blockId(" + aReq.blockId + "is unknown");
+      TAcceptorPhaseTwoResp resp =
+        new TAcceptorPhaseTwoResp(new TStatus(TStatusCode.ERROR), null);
+      resp.getStatus().setError_message("The bolckId(" + aReq.blockId + "is unknown");
+      return resp;
+    }
+    return rep.getPaxos().AcceptorPhaseTwo(aReq.ballot_num, aReq.slot_num, aReq.operation);
   }
 
   @Override
   public THeartbeatResp Heartbeat() throws TException {
-    // TODO Auto-generated method stub
-    return null;
+    THeartbeatResp resp = new THeartbeatResp(new TStatus(TStatusCode.SUCCESS));
+    return resp;
   }
 
   @Override
   public TLeaderAcceptResp LeaderAccept(TLeaderAcceptReq aReq)
       throws TException {
-    // TODO Auto-generated method stub
-    return null;
+    Replica rep = _blkMgr.getReplicafromBlkID(aReq.blockId);
+    if (rep == null) {
+      LOG.error("The blockId(" + aReq.blockId + "is unknown");
+      TLeaderAcceptResp resp =
+        new TLeaderAcceptResp(new TStatus(TStatusCode.ERROR));
+      resp.getStatus().setError_message("The bolckId(" + aReq.blockId + "is unknown");
+      return resp;
+    }
+    return rep.getPaxos().LeaderAccept(aReq.blockId, aReq.slot_num, aReq.operation);
   }
 
   @Override
   public TLeaderProposeResp LeaderPropose(TLeaderProposeReq aReq)
       throws TException {
-    // TODO Auto-generated method stub
-    return null;
+    Replica rep = _blkMgr.getReplicafromBlkID(aReq.blockId);
+    if (rep == null) {
+      LOG.error("The blockId(" + aReq.blockId + "is unknown");
+      TLeaderProposeResp resp =
+        new TLeaderProposeResp(new TStatus(TStatusCode.ERROR), null);
+      resp.getStatus().setError_message("The bolckId(" + aReq.blockId + "is unknown");
+      return resp;
+    }
+    return rep.getPaxos().LeaderPropose(aReq.blockId, aReq.ballot_num);
   }
 }

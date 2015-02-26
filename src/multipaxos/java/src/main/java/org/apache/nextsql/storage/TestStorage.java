@@ -44,4 +44,24 @@ public class TestStorage implements IStorage {
     }
     return 0;
   }
+  
+  @Override
+  public boolean open(String filepath, String mode) throws StorageException {
+    try {
+      _bfw.append(dateFormat.format(new Date()) + ": [OpenOp], " + filepath + " is opened.");
+    } catch (IOException e) {
+      throw new StorageException("OpenOp Failed : filepath = " + filepath);
+    }
+    return true;
+  }
+  
+  @Override
+  public boolean delete(String filepath) throws StorageException {
+    try {
+      _bfw.append(dateFormat.format(new Date()) + ": [DeleteOp], " + filepath + " is deleted.");
+    } catch (IOException e) {
+      throw new StorageException("DeleteOp Failed : filepath = " + filepath);
+    }
+    return true;
+  }
 }
