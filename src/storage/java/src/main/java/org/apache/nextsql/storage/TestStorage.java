@@ -1,4 +1,4 @@
-package org.apache.nextsql.multipaxos.storage;
+package org.apache.nextsql.storage;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -9,18 +9,23 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+
 public class TestStorage implements IStorage {
   private static final String _outputFilePath = "./TestStorage.txt";
   private static final DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
   private BufferedWriter _bfw = null;
 
-  public TestStorage() throws Exception {
-    File file = new File(_outputFilePath);
-    if (!file.exists()) {
-      file.createNewFile();
+  public TestStorage() throws StorageException {
+    try {
+      File file = new File(_outputFilePath);
+      if (!file.exists()) {
+        file.createNewFile();
+      }
+      FileWriter fw = new FileWriter(file.getAbsolutePath(), true);
+      this._bfw = new BufferedWriter(fw);
+    } catch (Exception e) {
+      throw new StorageException("TestStorage init failure: ", e);
     }
-    FileWriter fw = new FileWriter(file.getAbsolutePath(), true);
-    this._bfw = new BufferedWriter(fw);
   }
   
   @Override

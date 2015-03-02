@@ -6,5 +6,6 @@
 	<classpathentry combineaccessrules="false" kind="src" path="/multipaxos-java"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/common-java"/>
 	<classpathentry kind="lib" path="/home/leejy/work/nextsql/src/build/target/java/classes"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/storage-java"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>

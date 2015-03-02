@@ -1,4 +1,4 @@
-package org.apache.nextsql.multipaxos.storage;
+package org.apache.nextsql.storage;
 
 import org.apache.nextsql.common.NextSqlException;
 

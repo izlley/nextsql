@@ -4,8 +4,12 @@ import org.apache.nextsql.multipaxos.Replica;
 import org.apache.nextsql.multipaxos.thrift.ReplicaService;
 import org.apache.nextsql.multipaxos.thrift.TDecisionReq;
 import org.apache.nextsql.multipaxos.thrift.TDecisionResp;
+import org.apache.nextsql.multipaxos.thrift.TDeleteFileReq;
+import org.apache.nextsql.multipaxos.thrift.TDeleteFileResp;
 import org.apache.nextsql.multipaxos.thrift.TExecuteOperationReq;
 import org.apache.nextsql.multipaxos.thrift.TExecuteOperationResp;
+import org.apache.nextsql.multipaxos.thrift.TOpenFileReq;
+import org.apache.nextsql.multipaxos.thrift.TOpenFileResp;
 import org.apache.nextsql.multipaxos.thrift.TStatus;
 import org.apache.nextsql.multipaxos.thrift.TStatusCode;
 import org.apache.nextsql.server.BlockManager.PBMVal;
@@ -22,9 +26,25 @@ public class ReplicaTServer implements ReplicaService.Iface {
   }
 
   @Override
+  public TOpenFileResp OpenFile(TOpenFileReq aReq) throws TException {
+    PBMVal blk = _blkMgr.getBlkfromPath(aReq.file_path);
+    if (blk == null) {
+      // create a new block
+      
+    }
+    TOpenFileResp resp = new TOpenFileResp(new TStatus(), blk._blkId);
+    return resp;
+  }
+  
+  @Override
+  public TDeleteFileResp DeleteFile(TDeleteFileReq aReq) throws TException {
+    return null;
+  }
+  
+  @Override
   public TExecuteOperationResp ExecuteOperation(TExecuteOperationReq aReq)
       throws TException {
-    PBMVal blk = _blkMgr.getBlkIDfromPath(aReq.file_path);
+    PBMVal blk = _blkMgr.getBlkfromPath(aReq.file_path);
     Replica rep = _blkMgr.getReplicafromBlkID(blk._blkId);
     if (rep == null) {
       LOG.error("The file(" + aReq.file_path + "is unknown");

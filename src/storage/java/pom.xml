@@ -1,0 +1,23 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <parent>
+    <groupId>org.apache.nextsql</groupId>
+    <artifactId>nextsql</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <relativePath>../../pom.xml</relativePath>
+  </parent>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>org.apache.nextsql.storage-java</groupId>
+  <artifactId>storage-java</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <build>
+    <directory>${project.basedir}/../../build</directory>
+    <outputDirectory>${project.build.directory}/target/java/classes</outputDirectory>
+  </build>
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.thrift</groupId>
+      <artifactId>libthrift</artifactId>
+      <version>${libthrift.version}</version>
+    </dependency>
+  </dependencies>
+</project>

@@ -10,8 +10,8 @@ import org.apache.nextsql.common.NextSqlException;
 import org.apache.nextsql.multipaxos.MultiPaxosException;
 import org.apache.nextsql.multipaxos.Replica;
 import org.apache.nextsql.multipaxos.nodemanager.INodeManager;
-import org.apache.nextsql.multipaxos.storage.IStorage;
 import org.apache.nextsql.multipaxos.thrift.TNetworkAddress;
+import org.apache.nextsql.storage.IStorage;
 import org.apache.nextsql.util.SequentialNumber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,7 +55,7 @@ public class BlockManager {
     _blkReplicaMap.put(new Long(2L), new Replica(2L, aNodeIds, 0, null, _nodeMgr));
   }
   
-  public PBMVal getBlkIDfromPath(String aFilePath) {
+  public PBMVal getBlkfromPath(String aFilePath) {
     if (aFilePath == null) return null;
     PBMVal val = null;
     try {

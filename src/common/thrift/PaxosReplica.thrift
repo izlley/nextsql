@@ -11,6 +11,31 @@ enum TReplicaProtocolVersion {
 }
 
 //
+// OpenFile()
+//
+struct TOpenFileReq {
+  1: required string file_path
+  2: optional string mode
+}
+
+struct TOpenFileResp {
+  1: required Status.TStatus status
+  2: required i64 blockId
+}
+
+//
+// RemoveFile()
+//
+struct TDeleteFileReq {
+  1: required string file_path
+  2: optional i64 blockId
+}
+
+struct TDeleteFileResp {
+  1: required Status.TStatus status
+}
+
+//
 // ExecuteOperation()
 //
 struct TExecuteOperationReq {
@@ -37,8 +62,8 @@ struct TDecisionResp {
 }
 
 service ReplicaService {
-  //TOpenFileResp OpenFile(1:TOpenFileReq req);
-  //TRemoveFileResp RemoveFile(1:TRemoveFileReq req);
+  TOpenFileResp OpenFile(1:TOpenFileReq req);
+  TDeleteFileResp DeleteFile(1:TDeleteFileReq req);
   TExecuteOperationResp ExecuteOperation(1:TExecuteOperationReq req);
   TDecisionResp Decision(1:TDecisionReq req);
 }

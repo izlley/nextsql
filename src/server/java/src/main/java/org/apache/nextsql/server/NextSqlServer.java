@@ -2,6 +2,7 @@ package org.apache.nextsql.server;
 
 import org.apache.nextsql.multipaxos.thrift.PaxosService;
 import org.apache.nextsql.multipaxos.thrift.ReplicaService;
+import org.apache.nextsql.storage.StorageManager;
 import org.apache.nextsql.util.TServerSocketKeepAlive;
 import org.apache.thrift.protocol.TCompactProtocol;
 import org.apache.thrift.server.TServer;
@@ -17,12 +18,14 @@ public class NextSqlServer {
   
   public static NodeManager _nodeMgr;
   private static BlockManager _blkMgr;
-  // private static final StorageManager _strgMgr;
+  private static StorageManager _storageMgr;
   
   public static void main(String [] args) {
     try {
       // init NodeManager
       _nodeMgr = new NodeManager();
+      _storageMgr = new StorageManager(_conf.get(NextSqlConfigKeys.NS_CUSTOM_STORAGE,
+        NextSqlConfigKeys.NS_CUSTOM_STORAGE_DEFAULT));
       // init BlockManager
       _blkMgr = new BlockManager(_conf.getInt(
           NextSqlConfigKeys.NS_FILE_REPLICATION,

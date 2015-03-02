@@ -17,6 +17,7 @@
   </properties>
   <modules>
     <module>common/java</module>
+    <module>storage/java</module>
     <module>multipaxos/java</module>
     <module>server/java</module>
   </modules>

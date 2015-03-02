@@ -1,10 +1,10 @@
 package org.apache.nextsql.multipaxos;
 
 import org.apache.nextsql.multipaxos.nodemanager.INodeManager;
-import org.apache.nextsql.multipaxos.storage.IStorage;
-import org.apache.nextsql.multipaxos.storage.StorageException;
 import org.apache.nextsql.multipaxos.thrift.*;
 import org.apache.nextsql.multipaxos.util.SystemInfo;
+import org.apache.nextsql.storage.IStorage;
+import org.apache.nextsql.storage.StorageException;
 
 import java.nio.charset.Charset;
 import java.util.HashSet;
