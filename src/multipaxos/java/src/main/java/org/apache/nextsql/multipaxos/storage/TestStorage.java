@@ -1,4 +1,4 @@
-package org.apache.nextsql.storage;
+package org.apache.nextsql.multipaxos.storage;
 
 import java.io.BufferedWriter;
 import java.io.File;

@@ -8,6 +8,7 @@ import org.apache.nextsql.multipaxos.thrift.TExecuteOperationReq;
 import org.apache.nextsql.multipaxos.thrift.TExecuteOperationResp;
 import org.apache.nextsql.multipaxos.thrift.TStatus;
 import org.apache.nextsql.multipaxos.thrift.TStatusCode;
+import org.apache.nextsql.server.BlockManager.PBMVal;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,15 +24,15 @@ public class ReplicaTServer implements ReplicaService.Iface {
   @Override
   public TExecuteOperationResp ExecuteOperation(TExecuteOperationReq aReq)
       throws TException {
-    Long blkId = _blkMgr.getBlkIDfromPath(aReq.file_path);
-    Replica rep = _blkMgr.getReplicafromBlkID(blkId);
+    PBMVal blk = _blkMgr.getBlkIDfromPath(aReq.file_path);
+    Replica rep = _blkMgr.getReplicafromBlkID(blk._blkId);
     if (rep == null) {
       LOG.error("The file(" + aReq.file_path + "is unknown");
       TExecuteOperationResp resp = new TExecuteOperationResp(new TStatus(TStatusCode.ERROR));
       resp.getStatus().setError_message("The file(" + aReq.file_path + "is unknown");
       return resp;
     }
-    return rep.ExecuteOperation(blkId, aReq.operation);
+    return rep.ExecuteOperation(blk._blkId, aReq.operation);
   }
   
   @Override

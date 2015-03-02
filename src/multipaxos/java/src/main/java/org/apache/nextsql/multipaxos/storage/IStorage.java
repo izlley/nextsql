@@ -1,6 +1,4 @@
-package org.apache.nextsql.storage;
-
-import java.io.File;
+package org.apache.nextsql.multipaxos.storage;
 
 public interface IStorage {
   public long read(byte[] buf, long offset, long size) throws StorageException;

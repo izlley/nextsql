@@ -15,12 +15,23 @@ public class NextSqlServer {
   private static final Logger LOG = LoggerFactory.getLogger(NextSqlServer.class);
   public static final NextSqlConfiguration _conf = new NextSqlConfiguration();
   
-  private static final BlockManager _blkMgr = new BlockManager(_conf.getInt(
-      NextSqlConfigKeys.NS_FILE_REPLICATION, NextSqlConfigKeys.NS_FILE_REPLICATION_DEFAULT));
+  public static NodeManager _nodeMgr;
+  private static BlockManager _blkMgr;
   // private static final StorageManager _strgMgr;
   
   public static void main(String [] args) {
     try {
+      // init NodeManager
+      _nodeMgr = new NodeManager();
+      // init BlockManager
+      _blkMgr = new BlockManager(_conf.getInt(
+          NextSqlConfigKeys.NS_FILE_REPLICATION,
+          NextSqlConfigKeys.NS_FILE_REPLICATION_DEFAULT),
+          _nodeMgr
+        );
+      // init reserved Paxos groups
+      _blkMgr.initializeReservedRSMs(_nodeMgr.getAllNodeIds());
+      
       // replica thrift server
       final ReplicaService.Processor repSvrProc = new ReplicaService.Processor(
         new ReplicaTServer(_blkMgr));

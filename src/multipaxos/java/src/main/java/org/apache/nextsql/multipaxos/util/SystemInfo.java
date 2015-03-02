@@ -11,7 +11,8 @@ import org.slf4j.LoggerFactory;
 public class SystemInfo {
   private static final Logger LOG = LoggerFactory.getLogger(SystemInfo.class);
   
-  public static final int _serverPort = 6652;
+  public static final int _rsmPort = 6652;
+  public static final int _paxosPort = 6653;
   private static TNetworkAddress _netAddress = null;
   
   public static TNetworkAddress getNetworkAddress() {
@@ -19,7 +20,8 @@ public class SystemInfo {
     TNetworkAddress addr = new TNetworkAddress();
     try {
       addr.hostname = InetAddress.getLocalHost().getHostAddress();
-      addr.port = _serverPort;
+      addr.rsm_port = _rsmPort;
+      addr.paxos_port = _paxosPort;
     } catch (UnknownHostException e) {
       LOG.error("getNetworkAddress failed: " + e.getMessage());
       return null;

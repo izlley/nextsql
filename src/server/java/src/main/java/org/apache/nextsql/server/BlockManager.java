@@ -7,9 +7,11 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.nextsql.common.NextSqlException;
+import org.apache.nextsql.multipaxos.MultiPaxosException;
 import org.apache.nextsql.multipaxos.Replica;
+import org.apache.nextsql.multipaxos.nodemanager.INodeManager;
+import org.apache.nextsql.multipaxos.storage.IStorage;
 import org.apache.nextsql.multipaxos.thrift.TNetworkAddress;
-import org.apache.nextsql.storage.IStorage;
 import org.apache.nextsql.util.SequentialNumber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,31 +19,52 @@ import org.slf4j.LoggerFactory;
 public class BlockManager {
   private static final Logger LOG = LoggerFactory.getLogger(BlockManager.class);
   
-  private Map<String, Long> _PathBlkMap = new HashMap<String, Long>();
-  private Map<Long, Replica> _blkReplicaMap = new HashMap<Long, Replica>();
+  private final Map<String, PBMVal> _pathBlkMap = new HashMap<String, PBMVal>();
+  private final Map<Long, Replica> _blkReplicaMap = new HashMap<Long, Replica>();
   private final BlockIdGenerator _blkIdGen;
   private final ReentrantReadWriteLock _bnLock = new ReentrantReadWriteLock(true);
   private final Lock _readLock = _bnLock.readLock();
   private final Lock _writeLock = _bnLock.writeLock();
   private final int _maxReplication;
   private final int _minReplication;
+  private final INodeManager _nodeMgr;
   
-  public BlockManager(int aNumReplication) {
+  public BlockManager(int aNumReplication, NodeManager aNodeMgr)
+    throws NextSqlException {
     this._blkIdGen = new BlockIdGenerator(this);
     this._maxReplication = aNumReplication;
     this._minReplication = _maxReplication / 2 + 1;
+    this._nodeMgr = aNodeMgr;
   }
   
-  public Long getBlkIDfromPath(String aFilePath) {
+  protected class PBMVal {
+    protected final Long _blkId;
+    protected final List<Long> _nodeIds;
+    protected final int _leaderInd;
+    private PBMVal(Long aBlkId, List<Long> aNodeIds, int aLeaderInd) {
+      this._blkId = aBlkId;
+      this._nodeIds = aNodeIds;
+      this._leaderInd = aLeaderInd;
+    }
+  }
+  
+  public void initializeReservedRSMs(List<Long> aNodeIds) throws NextSqlException {
+    // The Paxos group for create/remove block op
+    _blkReplicaMap.put(new Long(1L), new Replica(1L, aNodeIds, 0, null, _nodeMgr));
+    // The Paxos group for update configuration op
+    _blkReplicaMap.put(new Long(2L), new Replica(2L, aNodeIds, 0, null, _nodeMgr));
+  }
+  
+  public PBMVal getBlkIDfromPath(String aFilePath) {
     if (aFilePath == null) return null;
-    Long blkId = null;
+    PBMVal val = null;
     try {
       _readLock.lock();
-      blkId = _PathBlkMap.get(aFilePath);
+      val = _pathBlkMap.get(aFilePath);
     } finally {
       _readLock.unlock();
     }
-    return blkId;
+    return val;
   }
   
   public Replica getReplicafromBlkID(Long aBlkId) {
@@ -61,9 +84,9 @@ public class BlockManager {
     Replica replica = null;
     try {
       _readLock.lock();
-      Long blkId = _PathBlkMap.get(aFilePath);
-      if (blkId != null) {
-        replica = _blkReplicaMap.get(blkId);
+      PBMVal val = _pathBlkMap.get(aFilePath);
+      if (val != null) {
+        replica = _blkReplicaMap.get(val._blkId);
       }
     } finally {
       _readLock.unlock();
@@ -71,13 +94,13 @@ public class BlockManager {
     return replica;
   }
   
-  public long createABlock(String aFilePath, List<TNetworkAddress> aLocs,
+  public long createABlock(String aFilePath, List<Long> aNodeIds,
       int aLeaderInd, IStorage aStorage) throws NextSqlException {
     long blkId = _blkIdGen.nextValue();
-    Replica newReplicas = new Replica(blkId, aLocs, aLeaderInd, aStorage);
+    Replica newReplicas = new Replica(blkId, aNodeIds, aLeaderInd, aStorage, _nodeMgr);
     try {
       _writeLock.lock();
-      if (_PathBlkMap.put(aFilePath, blkId) != null) {
+      if (_pathBlkMap.put(aFilePath, new PBMVal(blkId, aNodeIds, aLeaderInd)) != null) {
         throw new NextSqlServerException("The blockID(" + blkId + ") is already exists");
       }
       _blkReplicaMap.put(blkId, newReplicas);
@@ -90,11 +113,11 @@ public class BlockManager {
   public void removeFile(String aFilePath) throws NextSqlException {
     try {
       _writeLock.lock();
-      Long blkId = _PathBlkMap.remove(aFilePath);
-      if (blkId == null) {
+      PBMVal blk = _pathBlkMap.remove(aFilePath);
+      if (blk == null) {
         throw new NextSqlServerException("The file(" + aFilePath + ") is unknown");
       } else {
-        removeABlock(blkId);
+        removeABlock(blk._blkId);
       }
     } finally {
       _writeLock.unlock();

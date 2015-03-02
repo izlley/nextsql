@@ -6,7 +6,7 @@ enum TOpType {
   OP_READ,
   OP_WRITE,
   OP_OPEN,
-  OP_REMOVE,
+  OP_DELETE,
   OP_UPDATE,
   OP_GETMETA,
   OP_SETMETA

@@ -1,5 +1,8 @@
 package org.apache.nextsql.multipaxos;
 
+import org.apache.nextsql.multipaxos.nodemanager.INodeManager;
+import org.apache.nextsql.multipaxos.storage.IStorage;
+import org.apache.nextsql.multipaxos.storage.StorageException;
 import org.apache.nextsql.multipaxos.thrift.*;
 import org.apache.nextsql.multipaxos.util.SystemInfo;
 
@@ -18,8 +21,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.nextsql.storage.IStorage;
-import org.apache.nextsql.storage.StorageException;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TCompactProtocol;
 import org.apache.thrift.protocol.TProtocol;
@@ -36,7 +37,7 @@ public class Replica {
   private final long _blockId;
   private long _replicaId;
   private int _leaderInd;
-  protected List<TNetworkAddress> _replicaLocs;
+  protected List<Long> _replicaLocs;
   private long _size = 0;
   
   // need more think...
@@ -54,6 +55,7 @@ public class Replica {
   private ConcurrentHashMap<Long, TOperation> _decisions = new ConcurrentHashMap<Long, TOperation>();
   private final IStorage _storage;
   private final Paxos _paxosProtocol;
+  protected final INodeManager _nodeMgr;
   
   private class ExecuteDupSlotOp implements Callable {
     private long _blkId;
@@ -68,8 +70,8 @@ public class Replica {
     }
   }
   
-  public Replica(long aBlkId, List<TNetworkAddress> aLocs, int aLeaderInd,
-      IStorage aStorage) throws MultiPaxosException {
+  public Replica(long aBlkId, List<Long> aLocs, int aLeaderInd,
+      IStorage aStorage, INodeManager aNodeMgr) throws MultiPaxosException {
     this._blockId = aBlkId;
     this._leaderInd = aLeaderInd;
     this._replicaLocs = aLocs;
@@ -77,6 +79,7 @@ public class Replica {
     // TODO: gen replica id
     // this._replicaId = 
     this._storage = aStorage;
+    this._nodeMgr = aNodeMgr;
     // replica, leader, acceptor are co-located
     this._paxosProtocol = new Paxos(this, aLocs);
   }
@@ -110,7 +113,8 @@ public class Replica {
     if (_leader) { // || aOp.getOperation_type() == TOpType.OP_READ) {
       acceptResp = _paxosProtocol.LeaderAccept(aBlkId, newSlotNum, aOp);
     } else {
-      TProtocol leaderProtocol = getProtocol(_replicaLocs.get(_leaderInd));
+      TNetworkAddress leaderAddr = _nodeMgr.getNode(_replicaLocs.get(_leaderInd));
+      TProtocol leaderProtocol = getProtocol(leaderAddr.hostname, leaderAddr.paxos_port);
       leaderProtocol.getTransport().open();
       PaxosService.Iface client = new PaxosService.Client(leaderProtocol);
       if (client != null) {
@@ -147,9 +151,9 @@ public class Replica {
     return resp;
   }
   
-  static protected TProtocol getProtocol(TNetworkAddress aLoc)
+  static protected TProtocol getProtocol(String aHostname, int aPort)
       throws TTransportException {
-    TTransport sTransport = new TSocket(aLoc.hostname, aLoc.port, 0);
+    TTransport sTransport = new TSocket(aHostname, aPort, 0);
     return new TCompactProtocol(sTransport);
   }
   
@@ -170,6 +174,8 @@ public class Replica {
       LOG.debug("Try to exec the operation: type = " + op.getOperation_type() + ", data = " + op.data);
       for (; retry > 0; --retry) {
         switch (op.getOperation_type()) {
+          case OP_OPEN:
+            break;
           case OP_READ:
             byte[] readbuf = new byte[(int) op.size];
             try {
@@ -193,6 +199,7 @@ public class Replica {
             }
             break;
           case OP_UPDATE:
+          case OP_DELETE:
           case OP_GETMETA:
           case OP_SETMETA:
           default:

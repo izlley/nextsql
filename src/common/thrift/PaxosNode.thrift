@@ -12,12 +12,13 @@ enum TPaxosProtocolVersion {
 
 struct TNetworkAddress {
   1: required string hostname
-  2: required i32 port
+  2: required i32 rsm_port
+  3: required i32 paxos_port
 }
 
 struct TBallotNum {
   1: required i64 id
-  2: required TNetworkAddress proposer
+  2: required i64 nodeid
 }
 
 struct TAcceptedValue {
