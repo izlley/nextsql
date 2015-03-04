@@ -1,9 +1,7 @@
 package org.apache.nextsql.multipaxos.nodemanager;
 
-import java.util.List;
-
 import org.apache.nextsql.common.NextSqlException;
-import org.apache.nextsql.multipaxos.thrift.TNetworkAddress;
+import org.apache.nextsql.thrift.TNetworkAddress;
 
 public interface INodeManager {
   public TNetworkAddress getNode(Long aNodeId);

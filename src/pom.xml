@@ -21,6 +21,7 @@
     <module>storage/java</module>
     <module>multipaxos/java</module>
     <module>server/java</module>
+    <module>client/java</module>
   </modules>
   <repositories>
     <repository>

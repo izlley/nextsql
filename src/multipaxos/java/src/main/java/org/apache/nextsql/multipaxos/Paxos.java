@@ -16,12 +16,29 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.nextsql.multipaxos.thrift.*;
 import org.apache.nextsql.multipaxos.util.SystemInfo;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.apache.nextsql.thrift.PaxosService;
+import org.apache.nextsql.thrift.ReplicaService;
+import org.apache.nextsql.thrift.TAcceptedValue;
+import org.apache.nextsql.thrift.TAcceptorPhaseTwoReq;
+import org.apache.nextsql.thrift.TAcceptorPhaseTwoResp;
+import org.apache.nextsql.thrift.TBallotNum;
+import org.apache.nextsql.thrift.TDecisionReq;
+import org.apache.nextsql.thrift.TDecisionResp;
+import org.apache.nextsql.thrift.THeartbeatResp;
+import org.apache.nextsql.thrift.TLeaderAcceptResp;
+import org.apache.nextsql.thrift.TLeaderProposeResp;
+import org.apache.nextsql.thrift.TNetworkAddress;
+import org.apache.nextsql.thrift.TAcceptorPhaseOneReq;
+import org.apache.nextsql.thrift.TAcceptorPhaseOneResp;
+import org.apache.nextsql.thrift.TOperation;
+import org.apache.nextsql.thrift.TStatus;
+import org.apache.nextsql.thrift.TStatusCode;
 
 public class Paxos {
   private static final Logger LOG = LoggerFactory.getLogger(Paxos.class);

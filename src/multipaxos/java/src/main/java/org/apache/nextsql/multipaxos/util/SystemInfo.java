@@ -3,8 +3,7 @@ package org.apache.nextsql.multipaxos.util;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
-import org.apache.nextsql.multipaxos.Leader;
-import org.apache.nextsql.multipaxos.thrift.TNetworkAddress;
+import org.apache.nextsql.thrift.TNetworkAddress;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

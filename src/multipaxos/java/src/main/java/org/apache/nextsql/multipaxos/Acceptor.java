@@ -5,8 +5,8 @@ import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import org.apache.nextsql.multipaxos.thrift.TAcceptedValue;
-import org.apache.nextsql.multipaxos.thrift.TBallotNum;
+import org.apache.nextsql.thrift.TAcceptedValue;
+import org.apache.nextsql.thrift.TBallotNum;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

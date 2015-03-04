@@ -7,13 +7,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Random;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.nextsql.common.NextSqlException;
 import org.apache.nextsql.multipaxos.nodemanager.INodeManager;
-import org.apache.nextsql.multipaxos.thrift.TNetworkAddress;
+import org.apache.nextsql.thrift.TNetworkAddress;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

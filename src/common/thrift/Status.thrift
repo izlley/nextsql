@@ -1,5 +1,5 @@
 
-namespace java org.apache.nextsql.multipaxos.thrift
+namespace java org.apache.nextsql.thrift
 namespace cpp nextsql.thrift
 
 enum TStatusCode {

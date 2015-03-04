@@ -1,7 +1,7 @@
 package org.apache.nextsql.server;
 
-import org.apache.nextsql.multipaxos.thrift.PaxosService;
-import org.apache.nextsql.multipaxos.thrift.ReplicaService;
+import org.apache.nextsql.thrift.PaxosService;
+import org.apache.nextsql.thrift.ReplicaService;
 import org.apache.nextsql.storage.StorageManager;
 import org.apache.nextsql.util.TServerSocketKeepAlive;
 import org.apache.thrift.protocol.TBinaryProtocol;

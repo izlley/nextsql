@@ -1,13 +1,14 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>org.apache.nextsql</groupId>
     <artifactId>nextsql-java</artifactId>
+    <groupId>org.apache.nextsql</groupId>
     <version>0.0.1-SNAPSHOT</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
-  <modelVersion>4.0.0</modelVersion>
-  <artifactId>multipaxos-java</artifactId>
-  <name>NextSql MultiPaxos</name>
+  <artifactId>client-java</artifactId>
+  <name>NextSql Client</name>
+  <packaging>jar</packaging>
   <version>0.0.1-SNAPSHOT</version>
   <build>
     <directory>${project.basedir}/../../build</directory>
@@ -19,10 +20,5 @@
       <artifactId>libthrift</artifactId>
       <version>${libthrift.version}</version>
     </dependency>
-    <dependency>
-      <groupId>org.apache.thrift.tools</groupId>
-      <artifactId>maven-thrift-plugin</artifactId>
-      <version>0.1.11</version>
-      </dependency>
   </dependencies>
 </project>

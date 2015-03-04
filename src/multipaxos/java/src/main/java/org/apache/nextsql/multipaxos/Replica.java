@@ -1,11 +1,5 @@
 package org.apache.nextsql.multipaxos;
 
-import org.apache.nextsql.multipaxos.nodemanager.INodeManager;
-import org.apache.nextsql.multipaxos.thrift.*;
-import org.apache.nextsql.multipaxos.util.SystemInfo;
-import org.apache.nextsql.storage.IStorage;
-import org.apache.nextsql.storage.StorageException;
-
 import java.nio.charset.Charset;
 import java.util.HashSet;
 import java.util.List;
@@ -27,6 +21,20 @@ import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.transport.TSocket;
 import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
+import org.apache.nextsql.multipaxos.nodemanager.INodeManager;
+import org.apache.nextsql.multipaxos.util.SystemInfo;
+import org.apache.nextsql.storage.IStorage;
+import org.apache.nextsql.storage.StorageException;
+
+import org.apache.nextsql.thrift.PaxosService;
+import org.apache.nextsql.thrift.TDecisionResp;
+import org.apache.nextsql.thrift.TExecuteOperationResp;
+import org.apache.nextsql.thrift.TLeaderAcceptReq;
+import org.apache.nextsql.thrift.TLeaderAcceptResp;
+import org.apache.nextsql.thrift.TNetworkAddress;
+import org.apache.nextsql.thrift.TOperation;
+import org.apache.nextsql.thrift.TStatus;
+import org.apache.nextsql.thrift.TStatusCode;
 
 public class Replica {
   private static final Logger LOG = LoggerFactory.getLogger(Replica.class);
