@@ -6,8 +6,8 @@
     <version>0.0.1-SNAPSHOT</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
-  <groupId>org.apache.nextsql</groupId>
   <artifactId>storage-java</artifactId>
+  <name>NextSql Storage</name>
   <packaging>jar</packaging>
   <version>0.0.1-SNAPSHOT</version>
   <build>
@@ -19,6 +19,11 @@
       <groupId>org.apache.thrift</groupId>
       <artifactId>libthrift</artifactId>
       <version>${libthrift.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>commons-lang</groupId>
+      <artifactId>commons-lang</artifactId>
+      <version>${commons-lang.version}</version>
     </dependency>
   </dependencies>
 </project>

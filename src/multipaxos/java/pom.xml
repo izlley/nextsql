@@ -6,8 +6,8 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
   <modelVersion>4.0.0</modelVersion>
-  <groupId>org.apache.nextsql.multipaxos-java</groupId>
   <artifactId>multipaxos-java</artifactId>
+  <name>NextSql MultiPaxos</name>
   <version>0.0.1-SNAPSHOT</version>
   <build>
     <directory>${project.basedir}/../../build</directory>
