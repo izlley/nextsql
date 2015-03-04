@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.thrift.TException;
-import org.apache.thrift.protocol.TCompactProtocol;
+import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.transport.TSocket;
 import org.apache.thrift.transport.TTransport;
@@ -154,7 +154,7 @@ public class Replica {
   static protected TProtocol getProtocol(String aHostname, int aPort)
       throws TTransportException {
     TTransport sTransport = new TSocket(aHostname, aPort, 0);
-    return new TCompactProtocol(sTransport);
+    return new TBinaryProtocol(sTransport);
   }
   
   private String perform(TOperation op) throws StorageException {

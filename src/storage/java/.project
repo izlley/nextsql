@@ -3,7 +3,6 @@
 	<name>storage-java</name>
 	<comment></comment>
 	<projects>
-		<project>common</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
@@ -21,16 +20,4 @@
 		<nature>org.eclipse.jdt.core.javanature</nature>
 		<nature>org.eclipse.m2e.core.maven2Nature</nature>
 	</natures>
-	<linkedResources>
-		<link>
-			<name>java</name>
-			<type>2</type>
-			<location>/home/leejy/work/nextsql/src/storage/java/src/main/java</location>
-		</link>
-		<link>
-			<name>thrift</name>
-			<type>2</type>
-			<location>/home/leejy/work/nextsql/src/common/thrift</location>
-		</link>
-	</linkedResources>
 </projectDescription>

@@ -4,7 +4,7 @@ import org.apache.nextsql.multipaxos.thrift.PaxosService;
 import org.apache.nextsql.multipaxos.thrift.ReplicaService;
 import org.apache.nextsql.storage.StorageManager;
 import org.apache.nextsql.util.TServerSocketKeepAlive;
-import org.apache.thrift.protocol.TCompactProtocol;
+import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.server.TServer;
 import org.apache.thrift.server.TThreadPoolServer;
 import org.apache.thrift.transport.TServerSocket;
@@ -91,8 +91,8 @@ public class NextSqlServer {
         );
       TThreadPoolServer.Args sArgs = new TThreadPoolServer.Args(serverTransport).
           processor(processor);
-      sArgs.inputProtocolFactory(new TCompactProtocol.Factory());
-      sArgs.outputProtocolFactory(new TCompactProtocol.Factory());
+      sArgs.inputProtocolFactory(new TBinaryProtocol.Factory());
+      sArgs.outputProtocolFactory(new TBinaryProtocol.Factory());
       sArgs.minWorkerThreads(_conf.getInt(NextSqlConfigKeys.NS_REPLICA_WORKERTHREAD_MIN,
         NextSqlConfigKeys.NS_REPLICA_WORKERTHREAD_MIN_DEFAULT));
       sArgs.maxWorkerThreads(_conf.getInt(NextSqlConfigKeys.NS_REPLICA_WORKERTHREAD_MAX,
@@ -122,8 +122,8 @@ public class NextSqlServer {
         );
       TThreadPoolServer.Args sArgs = new TThreadPoolServer.Args(serverTransport).
           processor(processor);
-      sArgs.inputProtocolFactory(new TCompactProtocol.Factory());
-      sArgs.outputProtocolFactory(new TCompactProtocol.Factory());
+      sArgs.inputProtocolFactory(new TBinaryProtocol.Factory());
+      sArgs.outputProtocolFactory(new TBinaryProtocol.Factory());
       sArgs.minWorkerThreads(_conf.getInt(NextSqlConfigKeys.NS_PAXOS_WORKERTHREAD_MIN,
         NextSqlConfigKeys.NS_PAXOS_WORKERTHREAD_MIN_DEFAULT));
       sArgs.maxWorkerThreads(_conf.getInt(NextSqlConfigKeys.NS_PAXOS_WORKERTHREAD_MAX,
