@@ -5,6 +5,6 @@
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.6"/>
 	<classpathentry kind="con" path="org.eclipse.m2e.MAVEN2_CLASSPATH_CONTAINER"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/multipaxos-java"/>
-	<classpathentry kind="lib" path="/home/leejy/work/nextsql/src/build/target/java/classes"/>
+	<classpathentry kind="lib" path="/home/leejy/work/nextsql/src/build/target/java/classes" sourcepath="/home/leejy/work/nextsql/src/build/generated-sources/thrift/"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>

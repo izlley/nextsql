@@ -21,6 +21,8 @@ import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.transport.TSocket;
 import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
+import org.apache.nextsql.common.NextSqlException;
+import org.apache.nextsql.multipaxos.blockmanager.IBlockManager;
 import org.apache.nextsql.multipaxos.nodemanager.INodeManager;
 import org.apache.nextsql.multipaxos.util.SystemInfo;
 import org.apache.nextsql.storage.IStorage;
@@ -61,7 +63,7 @@ public class Replica {
   private AtomicLong _decisionSlotNum = new AtomicLong(1);
   private ConcurrentHashMap<Long, TOperation> _proposals = new ConcurrentHashMap<Long, TOperation>();
   private ConcurrentHashMap<Long, TOperation> _decisions = new ConcurrentHashMap<Long, TOperation>();
-  private final IStorage _storage;
+  private final Executor _executor;
   private final Paxos _paxosProtocol;
   protected final INodeManager _nodeMgr;
   
@@ -79,14 +81,14 @@ public class Replica {
   }
   
   public Replica(long aBlkId, List<Long> aLocs, int aLeaderInd,
-      IStorage aStorage, INodeManager aNodeMgr) throws MultiPaxosException {
+      IStorage aStorage, IBlockManager aBlkMgr, INodeManager aNodeMgr) throws MultiPaxosException {
     this._blockId = aBlkId;
     this._leaderInd = aLeaderInd;
     this._replicaLocs = aLocs;
     this._leader = aLocs.get(aLeaderInd).equals(SystemInfo.getNetworkAddress());
     // TODO: gen replica id
     // this._replicaId = 
-    this._storage = aStorage;
+    this._executor = new Executor(aStorage, aBlkMgr);
     this._nodeMgr = aNodeMgr;
     // replica, leader, acceptor are co-located
     this._paxosProtocol = new Paxos(this, aLocs);
@@ -149,7 +151,7 @@ public class Replica {
       // execute the operation
       try {
         resp.setData(perform(op));
-      } catch (StorageException e) {
+      } catch (NextSqlException e) {
         resp.setStatus(new TStatus(TStatusCode.ERROR));
         resp.getStatus().setError_message("Storage IO failure: " + e.getMessage());
         return resp;
@@ -165,7 +167,7 @@ public class Replica {
     return new TBinaryProtocol(sTransport);
   }
   
-  private String perform(TOperation op) throws StorageException {
+  private String perform(TOperation op) throws NextSqlException {
     String result = null;
     // check duplicated operation
     for (Map.Entry<Long, TOperation> entry: _decisions.entrySet()) {
@@ -176,47 +178,8 @@ public class Replica {
         return result;
       }
     }
-    // do operation
-    int retry = 3;
-    synchronized(this) {
-      LOG.debug("Try to exec the operation: type = " + op.getOperation_type() + ", data = " + op.data);
-      for (; retry > 0; --retry) {
-        switch (op.getOperation_type()) {
-          case OP_OPEN:
-            break;
-          case OP_READ:
-            byte[] readbuf = new byte[(int) op.size];
-            try {
-              _storage.read(readbuf, op.offset, op.size);
-              retry = 0;
-            } catch (StorageException e) {
-              LOG.error("Read operation failed: " + e.getMessage());
-              throw e;
-            }
-            // we need to eliminate memcpys
-            result = new String(readbuf, Charset.forName("UTF-8"));
-            break;
-          case OP_WRITE:
-            try {
-              _storage.write(op.data.getBytes(Charset.forName("UTF-8")),
-                  op.offset, op.size);
-              retry = 0;
-            } catch (StorageException e) {
-              LOG.error("Write operation failed" + e.getMessage());
-              throw e;
-            }
-            break;
-          case OP_UPDATE:
-          case OP_DELETE:
-          case OP_GETMETA:
-          case OP_SETMETA:
-          default:
-            retry = 0;
-            break;
-        }
-      }
-      _decisionSlotNum.incrementAndGet();
-    }
+    result = _executor.exec(op.operation_type, op.data, op.getOffset(), op.getSize(), (short)3);
+    _decisionSlotNum.incrementAndGet();
     return result;
   }
 
@@ -236,7 +199,7 @@ public class Replica {
       // execute the operation
       try {
         perform(op);
-      } catch (StorageException e) {
+      } catch (NextSqlException e) {
         resp.setStatus(new TStatus(TStatusCode.ERROR));
         resp.getStatus().setError_message("Storage IO failure: " + e.getMessage());
         return resp;
@@ -244,5 +207,9 @@ public class Replica {
     }
     resp.setStatus(new TStatus(TStatusCode.SUCCESS));
     return resp;
+  }
+  
+  public long getBlkId() {
+    return _blockId;
   }
 }

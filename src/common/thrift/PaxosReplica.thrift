@@ -20,7 +20,7 @@ struct TOpenFileReq {
 
 struct TOpenFileResp {
   1: required Status.TStatus status
-  2: required i64 blockId
+  2: optional i64 blockId
 }
 
 //

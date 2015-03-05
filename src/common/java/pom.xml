@@ -21,7 +21,7 @@
         <configuration>
           <encoding>UTF-8</encoding>
           <thriftSourceRoot>${project.basedir}/../thrift</thriftSourceRoot>
-          <thriftExecutable>${env.THRIFT_HOME}/install/bin/thrift</thriftExecutable>
+          <thriftExecutable>${env.THRIFT_HOME}/bin/thrift</thriftExecutable>
         </configuration>
         <executions>
           <execution>
@@ -36,6 +36,11 @@
     </plugins>
   </build>
   <dependencies>
+    <dependency>
+      <groupId>commons-lang</groupId>
+      <artifactId>commons-lang</artifactId>
+      <version>${commons-lang.version}</version>
+    </dependency>
     <dependency>
       <groupId>org.apache.thrift</groupId>
       <artifactId>libthrift</artifactId>

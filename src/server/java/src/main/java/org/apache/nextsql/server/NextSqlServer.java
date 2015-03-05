@@ -16,7 +16,7 @@ public class NextSqlServer {
   private static final Logger LOG = LoggerFactory.getLogger(NextSqlServer.class);
   public static final NextSqlConfiguration _conf = new NextSqlConfiguration();
   
-  public static NodeManager _nodeMgr;
+  private static NodeManager _nodeMgr;
   private static BlockManager _blkMgr;
   private static StorageManager _storageMgr;
   

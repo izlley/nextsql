@@ -1,5 +1,7 @@
 package org.apache.nextsql.server;
 
+import java.security.SecureRandom;
+
 import org.apache.nextsql.multipaxos.Replica;
 import org.apache.nextsql.thrift.ReplicaService;
 import org.apache.nextsql.thrift.TDecisionReq;
@@ -8,11 +10,12 @@ import org.apache.nextsql.thrift.TDeleteFileReq;
 import org.apache.nextsql.thrift.TDeleteFileResp;
 import org.apache.nextsql.thrift.TExecuteOperationReq;
 import org.apache.nextsql.thrift.TExecuteOperationResp;
+import org.apache.nextsql.thrift.TOpType;
 import org.apache.nextsql.thrift.TOpenFileReq;
 import org.apache.nextsql.thrift.TOpenFileResp;
+import org.apache.nextsql.thrift.TOperation;
 import org.apache.nextsql.thrift.TStatus;
 import org.apache.nextsql.thrift.TStatusCode;
-import org.apache.nextsql.server.BlockManager.PBMVal;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,20 +23,29 @@ import org.slf4j.LoggerFactory;
 public class ReplicaTServer implements ReplicaService.Iface {
   private static final Logger LOG = LoggerFactory.getLogger(ReplicaTServer.class);
   private final BlockManager _blkMgr;
+  private final SecureRandom _rand;
   
   ReplicaTServer(BlockManager aBlkMgr) {
     this._blkMgr = aBlkMgr;
+    this._rand = new SecureRandom();
   }
 
   @Override
   public TOpenFileResp OpenFile(TOpenFileReq aReq) throws TException {
-    PBMVal blk = _blkMgr.getBlkfromPath(aReq.file_path);
-    if (blk == null) {
-      // create a new block
-      
+    TOpenFileResp resp = new TOpenFileResp();
+    Replica rep = _blkMgr.getReplicafromBlkID(1L);
+    if (rep == null) {
+      LOG.error("Replica is corrupted.");
+      resp.setStatus(new TStatus(TStatusCode.ERROR));
+      resp.getStatus().setError_message("Replica is corrupted.");
+      return resp;
     }
-    TOpenFileResp resp = new TOpenFileResp(new TStatus(), blk._blkId);
-    return resp;
+    TOperation op = new TOperation(0L, _rand.nextLong(), TOpType.OP_OPEN, aReq.file_path);
+    TExecuteOperationResp openResult = rep.ExecuteOperation(1L, op);
+    if (openResult.getStatus().getStatus_code() == TStatusCode.SUCCESS) {
+      resp.setBlockId(Long.parseLong(openResult.data));
+    }
+    return resp.setStatus(openResult.status);
   }
   
   @Override
@@ -44,15 +56,14 @@ public class ReplicaTServer implements ReplicaService.Iface {
   @Override
   public TExecuteOperationResp ExecuteOperation(TExecuteOperationReq aReq)
       throws TException {
-    PBMVal blk = _blkMgr.getBlkfromPath(aReq.file_path);
-    Replica rep = _blkMgr.getReplicafromBlkID(blk._blkId);
+    Replica rep = _blkMgr.getReplicafromPath(aReq.file_path);
     if (rep == null) {
       LOG.error("The file(" + aReq.file_path + "is unknown");
       TExecuteOperationResp resp = new TExecuteOperationResp(new TStatus(TStatusCode.ERROR));
       resp.getStatus().setError_message("The file(" + aReq.file_path + "is unknown");
       return resp;
     }
-    return rep.ExecuteOperation(blk._blkId, aReq.operation);
+    return rep.ExecuteOperation(rep.getBlkId(), aReq.operation);
   }
   
   @Override

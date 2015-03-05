@@ -5,7 +5,6 @@ import org.apache.nextsql.thrift.TExecuteOperationReq;
 import org.apache.nextsql.thrift.TExecuteOperationResp;
 import org.apache.nextsql.thrift.TOpType;
 import org.apache.nextsql.thrift.TOperation;
-import org.apache.nextsql.thrift.TStatusCode;
 
 public class NSOperation {
   private NSConnection _connection;

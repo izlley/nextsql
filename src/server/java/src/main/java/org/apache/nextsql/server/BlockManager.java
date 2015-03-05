@@ -8,12 +8,13 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.nextsql.common.NextSqlException;
 import org.apache.nextsql.multipaxos.Replica;
+import org.apache.nextsql.multipaxos.blockmanager.IBlockManager;
 import org.apache.nextsql.multipaxos.nodemanager.INodeManager;
 import org.apache.nextsql.storage.IStorage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class BlockManager {
+public class BlockManager implements IBlockManager {
   private static final Logger LOG = LoggerFactory.getLogger(BlockManager.class);
   
   private final Map<String, PBMVal> _pathBlkMap = new HashMap<String, PBMVal>();
@@ -47,12 +48,12 @@ public class BlockManager {
   
   public void initializeReservedRSMs(List<Long> aNodeIds) throws NextSqlException {
     // The Paxos group for create/remove block op
-    _blkReplicaMap.put(new Long(1L), new Replica(1L, aNodeIds, 0, null, _nodeMgr));
+    _blkReplicaMap.put(new Long(1L), new Replica(1L, aNodeIds, 0, null, this, _nodeMgr));
     // The Paxos group for update configuration op
-    _blkReplicaMap.put(new Long(2L), new Replica(2L, aNodeIds, 0, null, _nodeMgr));
+    _blkReplicaMap.put(new Long(2L), new Replica(2L, aNodeIds, 0, null, this, _nodeMgr));
   }
   
-  public PBMVal getBlkfromPath(String aFilePath) {
+  public Long getBlkIdfromPath(String aFilePath) {
     if (aFilePath == null) return null;
     PBMVal val = null;
     try {
@@ -61,7 +62,7 @@ public class BlockManager {
     } finally {
       _readLock.unlock();
     }
-    return val;
+    return val._blkId;
   }
   
   public Replica getReplicafromBlkID(Long aBlkId) {
@@ -91,13 +92,14 @@ public class BlockManager {
     return replica;
   }
   
-  public long createABlock(String aFilePath, List<Long> aNodeIds,
-      int aLeaderInd, IStorage aStorage) throws NextSqlException {
+  public long createABlock(String aFilePath, IStorage aStorage) throws NextSqlException {
     long blkId = _blkIdGen.nextValue();
-    Replica newReplicas = new Replica(blkId, aNodeIds, aLeaderInd, aStorage, _nodeMgr);
+    List<Long> nodeIds = _nodeMgr.getRandomNodeList(_maxReplication);
+    int leaderIdx = 0;
+    Replica newReplicas = new Replica(blkId, nodeIds, leaderIdx, aStorage, this, _nodeMgr);
     try {
       _writeLock.lock();
-      if (_pathBlkMap.put(aFilePath, new PBMVal(blkId, aNodeIds, aLeaderInd)) != null) {
+      if (_pathBlkMap.put(aFilePath, new PBMVal(blkId, nodeIds, leaderIdx)) != null) {
         throw new NextSqlServerException("The blockID(" + blkId + ") is already exists");
       }
       _blkReplicaMap.put(blkId, newReplicas);
@@ -121,7 +123,7 @@ public class BlockManager {
     }
   }
   
-  private void removeABlock(Long aBlkId) throws NextSqlException {
+  private void removeABlock(Long aBlkId) throws NextSqlServerException {
     Replica rep = _blkReplicaMap.remove(aBlkId);
     if (rep == null)
       throw new NextSqlServerException("The blockId(" + aBlkId + ") is not exists");
