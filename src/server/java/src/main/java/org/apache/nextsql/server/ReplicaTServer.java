@@ -50,7 +50,17 @@ public class ReplicaTServer implements ReplicaService.Iface {
   
   @Override
   public TDeleteFileResp DeleteFile(TDeleteFileReq aReq) throws TException {
-    return null;
+    TDeleteFileResp resp = new TDeleteFileResp();
+    Replica rep = _blkMgr.getReplicafromBlkID(1L);
+    if (rep == null) {
+      LOG.error("Replica is corrupted.");
+      resp.setStatus(new TStatus(TStatusCode.ERROR));
+      resp.getStatus().setError_message("Replica is corrupted.");
+      return resp;
+    }
+    TOperation op = new TOperation(0L, _rand.nextLong(), TOpType.OP_DELETE, aReq.file_path);
+    TExecuteOperationResp delResult = rep.ExecuteOperation(1L, op);
+    return resp.setStatus(delResult.status);
   }
   
   @Override

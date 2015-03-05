@@ -24,7 +24,7 @@ struct TOpenFileResp {
 }
 
 //
-// RemoveFile()
+// DeleteFile()
 //
 struct TDeleteFileReq {
   1: required string file_path
