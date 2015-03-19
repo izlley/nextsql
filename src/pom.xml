@@ -14,7 +14,7 @@
     <jackson.version>1.9.2</jackson.version>
     <commons-lang.version>2.6</commons-lang.version>
     <log4j.version>1.2.16</log4j.version>
-    <slf4j.version>1.6.4</slf4j.version>
+    <slf4j.version>1.7.10</slf4j.version>
   </properties>
   <modules>
     <module>common/java</module>

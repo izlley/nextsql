@@ -1,8 +1,8 @@
 # nextsql
-The next generation of database
+This is the next generation of database like spanner and foundationDB.
 
 ## Multi-paxos
-Implemented multi-paxos for data replication and transaction control.
+Implemented multi-paxos for data replication and RSM.
 
 ```
 Message flow: Multi-Paxos Collapsed Roles, start
@@ -28,3 +28,14 @@ Client      Servers
    |<--------X  |  |  Response
    |         |  |  |
 ```
+## Variation of 2PC
+Implemented a non-blocking 2PC variation for transaction control.
+
+## True-time
+
+## Key-value storage
+
+## Structured data conversion
+
+## SQL query compiler
+

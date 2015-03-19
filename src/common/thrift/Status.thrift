@@ -6,6 +6,7 @@ enum TStatusCode {
   SUCCESS,
   STILL_EXECUTING,
   CANCELLED,
+  REQUESTED_WRONG_NODE,
   ERROR,
 }
 

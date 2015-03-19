@@ -24,16 +24,18 @@ public class NextSqlServer {
     try {
       // init NodeManager
       _nodeMgr = new NodeManager();
+      // init StorageManager
       _storageMgr = new StorageManager(_conf.get(NextSqlConfigKeys.NS_CUSTOM_STORAGE,
         NextSqlConfigKeys.NS_CUSTOM_STORAGE_DEFAULT));
       // init BlockManager
       _blkMgr = new BlockManager(_conf.getInt(
           NextSqlConfigKeys.NS_FILE_REPLICATION,
           NextSqlConfigKeys.NS_FILE_REPLICATION_DEFAULT),
-          _nodeMgr
+          _nodeMgr,
+          _storageMgr.getStorage()
         );
       // init reserved Paxos groups
-      _blkMgr.initializeReservedRSMs(_nodeMgr.getAllNodeIds());
+      _blkMgr.initializeReservedRSMs();
       
       // replica thrift server
       final ReplicaService.Processor repSvrProc = new ReplicaService.Processor(

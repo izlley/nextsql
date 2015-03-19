@@ -20,7 +20,6 @@ public class Acceptor {
   private List<TAcceptedValue> _accepted = new ArrayList<TAcceptedValue>();
   
   // TODO: need gc for _accepted
-  
   synchronized public void addAcceptVal(TAcceptedValue aVal) {
     _accepted.add(aVal);
   }
@@ -30,15 +29,29 @@ public class Acceptor {
   }
   
   public TBallotNum getBallotNum() {
-    _readLock.lock();
-    TBallotNum bn = _ballotNum;
-    _readLock.unlock();
-    return bn;
+    try {
+      _readLock.lock();
+      return _ballotNum;
+    } finally {
+      _readLock.unlock();
+    }
+  }
+  
+  public TBallotNum getBallotNumClone() {
+    try {
+      _readLock.lock();
+      return new TBallotNum(_ballotNum);
+    } finally {
+      _readLock.unlock();
+    }
   }
   
   public void setBallotNum(TBallotNum aBN) {
-    _writeLock.lock();
-    _ballotNum = aBN;
-    _writeLock.unlock();
+    try {
+      _writeLock.lock();
+      _ballotNum = aBN;
+    } finally {
+      _writeLock.unlock();
+    }
   }
 }

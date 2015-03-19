@@ -11,7 +11,8 @@ import java.util.Date;
 
 public class TestStorage implements IStorage {
   private static final String _outputFilePath = "./TestStorage.txt";
-  private static final DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+  private static final DateFormat dateFormat =
+    new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
   private BufferedWriter _bfw = null;
 
   public TestStorage() throws StorageException {
@@ -30,9 +31,11 @@ public class TestStorage implements IStorage {
   @Override
   public long read(byte[] buf, long offset, long size) throws StorageException {
     try {
-      _bfw.append(dateFormat.format(new Date()) + ": [ReadOp], offset=" + offset + ", size=" + size + "\n");
+      _bfw.append(dateFormat.format(new Date()) + ": [ReadOp], offset=" + offset
+        + ", size=" + size + "\n");
     } catch (IOException e) {
-      throw new StorageException("ReadOp Failed : offset=" + offset + ", size=" + size);
+      throw new StorageException("ReadOp Failed : offset=" + offset + ", size="
+        + size);
     }
     return 0;
   }
@@ -41,10 +44,12 @@ public class TestStorage implements IStorage {
   public long write(byte[] buf, long offset, long size) throws StorageException {
     try {
       _bfw.append(dateFormat.format(new Date()) + ": [WriteOp], buf=" + 
-        new String(buf, Charset.forName("UTF-8")) + "offset=" + offset + ", size=" + size + "\n");
+        new String(buf, Charset.forName("UTF-8")) + "offset=" + offset + ", size="
+          + size + "\n");
     } catch (IOException e) {
       throw new StorageException("WriteOp Failed : buf=" + 
-        new String(buf, Charset.forName("UTF-8")) + "offset=" + offset + ", size=" + size);
+        new String(buf, Charset.forName("UTF-8")) + "offset=" + offset + ", size="
+          + size);
     }
     return 0;
   }
@@ -52,7 +57,8 @@ public class TestStorage implements IStorage {
   @Override
   public void open(String filepath, String mode) throws StorageException {
     try {
-      _bfw.append(dateFormat.format(new Date()) + ": [OpenOp], " + filepath + " is opened.");
+      _bfw.append(dateFormat.format(new Date()) + ": [OpenOp], " + filepath +
+        " is opened.");
     } catch (IOException e) {
       throw new StorageException("OpenOp Failed : filepath = " + filepath);
     }
@@ -61,7 +67,8 @@ public class TestStorage implements IStorage {
   @Override
   public void delete(String filepath) throws StorageException {
     try {
-      _bfw.append(dateFormat.format(new Date()) + ": [DeleteOp], " + filepath + " is deleted.");
+      _bfw.append(dateFormat.format(new Date()) + ": [DeleteOp], " + filepath +
+        " is deleted.");
     } catch (IOException e) {
       throw new StorageException("DeleteOp Failed : filepath = " + filepath);
     }

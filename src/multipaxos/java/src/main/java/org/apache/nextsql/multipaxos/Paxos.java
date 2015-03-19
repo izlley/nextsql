@@ -3,11 +3,9 @@ package org.apache.nextsql.multipaxos;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -16,7 +14,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.nextsql.multipaxos.util.SystemInfo;
+import org.apache.nextsql.common.NextSqlException;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TProtocol;
 import org.slf4j.Logger;
@@ -30,6 +28,7 @@ import org.apache.nextsql.thrift.TAcceptorPhaseTwoResp;
 import org.apache.nextsql.thrift.TBallotNum;
 import org.apache.nextsql.thrift.TDecisionReq;
 import org.apache.nextsql.thrift.TDecisionResp;
+import org.apache.nextsql.thrift.TExecResult;
 import org.apache.nextsql.thrift.THeartbeatResp;
 import org.apache.nextsql.thrift.TLeaderAcceptResp;
 import org.apache.nextsql.thrift.TLeaderProposeResp;
@@ -37,6 +36,7 @@ import org.apache.nextsql.thrift.TNetworkAddress;
 import org.apache.nextsql.thrift.TAcceptorPhaseOneReq;
 import org.apache.nextsql.thrift.TAcceptorPhaseOneResp;
 import org.apache.nextsql.thrift.TOperation;
+import org.apache.nextsql.thrift.TRepNode;
 import org.apache.nextsql.thrift.TStatus;
 import org.apache.nextsql.thrift.TStatusCode;
 
@@ -48,7 +48,7 @@ public class Paxos {
   private Replica _replica = null;
   private Leader _leader = null;
   private Acceptor _acceptor = null;
-  protected List<Long> _acceptorLocs;
+  protected List<TRepNode> _acceptorNodes;
   
   private static enum PaxosMsgType {
     P1A, P2A
@@ -78,9 +78,7 @@ public class Paxos {
             TProtocol acceptorProtocol = Replica.getProtocol(_dest.hostname, _dest.paxos_port);
             acceptorProtocol.getTransport().open();
             PaxosService.Iface client = new PaxosService.Client(acceptorProtocol);
-            if (client != null) {
-              resp = client.AcceptorPhaseOne((TAcceptorPhaseOneReq)_msg);
-            }// else exception
+            resp = client.AcceptorPhaseOne((TAcceptorPhaseOneReq)_msg);
             acceptorProtocol.getTransport().close();
           }
           return resp;
@@ -95,9 +93,7 @@ public class Paxos {
             TProtocol acceptorProtocol = Replica.getProtocol(_dest.hostname, _dest.paxos_port);
             acceptorProtocol.getTransport().open();
             PaxosService.Iface client = new PaxosService.Client(acceptorProtocol);
-            if (client != null) {
-              resp = client.AcceptorPhaseTwo((TAcceptorPhaseTwoReq)_msg);
-            }// else exception
+            resp = client.AcceptorPhaseTwo((TAcceptorPhaseTwoReq)_msg);
             acceptorProtocol.getTransport().close();
           }
           return resp;
@@ -112,57 +108,62 @@ public class Paxos {
   private class SendDecisionMsg implements Callable {
     private TNetworkAddress _dest;
     private TDecisionReq _msg;
-    public SendDecisionMsg(TNetworkAddress aAddr, TDecisionReq aMsg) {
+    private boolean _leader;
+    public SendDecisionMsg(TNetworkAddress aAddr, TDecisionReq aMsg, boolean aLeader) {
       this._dest = aAddr;
       this._msg = aMsg;
+      this._leader = aLeader;
     }
     @Override
     public Object call() throws Exception {
       TDecisionResp resp = null;
-      TProtocol replicaProtocol = Replica.getProtocol(_dest.hostname, _dest.rsm_port);
-      replicaProtocol.getTransport().open();
-      ReplicaService.Iface client = new ReplicaService.Client(replicaProtocol);
-      if (client != null) {
+      if (_leader) {
+        resp = _replica.Decision(_msg.slot_num, _msg.operation);
+      } else {
+        TProtocol replicaProtocol = Replica.getProtocol(_dest.hostname,
+          _dest.rsm_port);
+        replicaProtocol.getTransport().open();
+        ReplicaService.Iface client = new ReplicaService.Client(replicaProtocol);
         resp = client.Decision(_msg);
-      }// else exception
-      replicaProtocol.getTransport().close();
+        replicaProtocol.getTransport().close();
+      }
       return resp;
     }
   }
   
-  public Paxos(Replica aReplica, List<Long> aLocs) throws MultiPaxosException {
+  public Paxos(Replica aReplica, List<TRepNode> aReps) throws MultiPaxosException {
     this._replica = aReplica;
-    this._acceptorLocs = aLocs;
+    this._acceptorNodes = aReps;
     this._leader = new Leader(_replica._nodeMgr);
     this._acceptor = new Acceptor();
   }
 
-  public TLeaderProposeResp LeaderPropose(long aBlkId, TBallotNum aBn)
-      throws TException {
+  public TLeaderProposeResp LeaderPropose(TBallotNum aBn) {
     LOG.debug("LeaderPropose is requested.");
     TLeaderProposeResp resp = new TLeaderProposeResp();
-    if (compareBallotNums(aBn, _leader.getBallotNum()) > 0) {
+    TBallotNum lbn = _leader.getBallotNumClone();
+    if (compareBallotNums(aBn, lbn) > 0) {
       _leader.setBallotNum(aBn);
       try {
-        proposeAndAdopt(aBlkId, aBn);
-      } catch (TException e) {
-        LOG.error("LeaderPropose failure: " + e.getMessage());
-        resp.getStatus().setStatus_code(TStatusCode.ERROR);
-        resp.setBallot_num(_leader.getBallotNum());
-        resp.getStatus().setError_message("LeaderPropose failure: " + e.getMessage());
+        proposeAndAdopt(aBn);
+      } catch (NextSqlException e) {
+        resp.setStatus(new TStatus(TStatusCode.ERROR));
+        resp.getStatus().setError_message(e.getMessage());
         return resp;
       }
       resp.getStatus().setStatus_code(TStatusCode.SUCCESS);
     } else {
-      LOG.error("LeaderPropose failure: the requested BN is smaller than leader's BN");
+      final String errmsg =
+        "LeaderPropose failure: the requested BN is smaller than leader's BN";
+      LOG.error(errmsg);
       resp.setStatus(new TStatus(TStatusCode.ERROR));
-      resp.setBallot_num(_leader.getBallotNum());
-      resp.getStatus().setError_message("LeaderPropose failure: the requested BN is smaller than leader's BN");
+      resp.setBallot_num(lbn);
+      resp.getStatus().setError_message(errmsg);
     }
     return resp;
   }
 
-  public TLeaderAcceptResp LeaderAccept(long aBlkId, long aSlotNum, TOperation aOp) throws TException {
+  public TLeaderAcceptResp LeaderAccept(long aSlotNum, TOperation aOp) {
     LOG.debug("LeaderAccept is requested");
     TLeaderAcceptResp resp = new TLeaderAcceptResp();
     // check duplicated operation
@@ -174,39 +175,46 @@ public class Paxos {
     // add to leader's proposals map
     _leader._proposals.put(aSlotNum, aOp);
     if (_leader._active.get()) {
-      acceptAndDecide(aBlkId, aSlotNum, aOp);
+      try {
+        TExecResult result = acceptAndDecide(aSlotNum, aOp);
+        resp.setExec_result(result);
+      } catch (NextSqlException e) {
+        resp.setStatus(new TStatus(TStatusCode.ERROR));
+        resp.getStatus().setError_message(e.getMessage());
+        return resp;
+      }
     }
     resp.setStatus(new TStatus(TStatusCode.SUCCESS));
     return resp;
   }
   
-  private void acceptAndDecide(long aBlkId, long aSlotNum, TOperation aOp) throws TException {
-    TAcceptorPhaseTwoReq p2aReq = new TAcceptorPhaseTwoReq(aBlkId, _leader.getBallotNum(),
-        aSlotNum, aOp);
-    Set<Future<TAcceptorPhaseTwoResp>> p2bResps = new HashSet<Future<TAcceptorPhaseTwoResp>>();
+  private TExecResult acceptAndDecide(long aSlotNum, TOperation aOp) 
+      throws NextSqlException {
+    TExecResult result = null;
+    List<Future<TAcceptorPhaseTwoResp>> p2bResps =
+      new ArrayList<Future<TAcceptorPhaseTwoResp>>(_acceptorNodes.size());
+    TBallotNum lbn = _leader.getBallotNumClone();
     // send p2a msg to acceptors
-    for (Long accId: _acceptorLocs) {
-      TNetworkAddress accAddr = _replica._nodeMgr.getNode(accId);
+    for (TRepNode acc: _acceptorNodes) {
+      TNetworkAddress accAddr = _replica._nodeMgr.getNodeInfo(acc.node_id);
+      TAcceptorPhaseTwoReq p2aReq =
+        new TAcceptorPhaseTwoReq(acc.replica_id, lbn, aSlotNum, aOp);
       if (accAddr == null) {
-        LOG.error("There is no Acceptor node mapping to the ID. (ID = " + accId + ")");
+        LOG.error("There is no Acceptor node mapping to the ID. (ID = {})",
+          acc.node_id);
         continue;
       }
       LOG.debug("Leader send p2a msg to aceptor(" + accAddr.getHostname() + ")");
-      if (accAddr.equals(SystemInfo.getNetworkAddress())) {
-        p2bResps.add(
-          _threadPool.submit(
-            new SendPaxosMsg(PaxosMsgType.P2A, accAddr, p2aReq, true)
-          )
-        );
-      } else {
-        p2bResps.add(
-          _threadPool.submit(
-            new SendPaxosMsg(PaxosMsgType.P2A, accAddr, p2aReq, false)
-          )
-        );
-      }
+      p2bResps.add(
+        _threadPool.submit(
+          new SendPaxosMsg(PaxosMsgType.P2A,
+                           accAddr,
+                           p2aReq,
+                           (acc.node_id == _replica._nodeMgr.getMyNodeId()))
+        )
+      );
     }
-    int accCnt = _acceptorLocs.size();
+    int accCnt = _acceptorNodes.size();
     int completeCnt = 0;
     boolean preempted = false;
     TAcceptorPhaseTwoResp p2bResp = null;
@@ -219,13 +227,12 @@ public class Paxos {
             p2bResp = res.get();
             if (p2bResp != null) {
               LOG.debug("Leader get p2b msg from aceptor");
-              if (p2bResp.getBallot_num().equals(p2aReq.getBallot_num())) {
+              if (p2bResp.getBallot_num().equals(lbn)) {
                 ++completeCnt;
                 it.remove();
               } else {
-                LOG.info("Leader enter preempted mode. reqBN = " + 
-                  p2aReq.getBallot_num().id + ":" + p2aReq.getBallot_num().nodeid +
-                  ", respBN = " + p2bResp.getBallot_num().id + ":" + p2bResp.getBallot_num().nodeid);
+                LOG.info("Leader enter preempted mode. reqBN = {}:{}, respBN = {}:{}",
+                  lbn.id, lbn.nodeid, p2bResp.getBallot_num().id, p2bResp.getBallot_num().nodeid);
                 preempted = true;
                 break;
               }
@@ -233,62 +240,77 @@ public class Paxos {
           } catch (InterruptedException e) {
             // ignore
           } catch (ExecutionException e) {
-            LOG.error("P2A sender failure:" + e.getCause());
+            LOG.error("P2A sender failure: ", e);
           }
         }
       }
     }
     if (preempted && p2bResp != null) {
       // another leader is elected?
-      TAcceptorPhaseOneResp p1aResp = preempted(aBlkId, p2bResp.getBallot_num());
+      preempted(p2bResp.getBallot_num());
     } else {
-      TDecisionReq decisionReq = new TDecisionReq(aBlkId, aSlotNum, aOp);
-      Set<Future<TDecisionResp>> decisionResps = new HashSet<Future<TDecisionResp>>();
+      List<Future<TDecisionResp>> decisionResps =
+        new ArrayList<Future<TDecisionResp>>(_replica._replicaNodes.size());
       // send a decision msg to remote replicas
-      for (Long repId: _replica._replicaLocs) {
-        TNetworkAddress repAddr = _replica._nodeMgr.getNode(repId);
-        if (!repAddr.equals(SystemInfo.getNetworkAddress())) {
-          decisionResps.add(_threadPool.submit(new SendDecisionMsg(repAddr, decisionReq)));
-        }
+      int i = 0;
+      for (TRepNode rep: _replica._replicaNodes) {
+        TDecisionReq decisionReq = new TDecisionReq(rep.replica_id, aSlotNum, aOp);
+        TNetworkAddress repAddr = _replica._nodeMgr.getNodeInfo(rep.node_id);
+        decisionResps.add(
+          _threadPool.submit(
+            new SendDecisionMsg(
+              repAddr, decisionReq, (i++ == _replica._leaderIdx))
+          )
+        );
+      }
+      try {
+        // wait till leader commit process is completed, because the leader
+        // must have up-to-dated objects
+        TDecisionResp resp = decisionResps.get(_replica._leaderIdx).get();
+        result = resp.result;
+      } catch (InterruptedException e) {
+        // ignore
+      } catch (ExecutionException e) {
+        LOG.error("Leader commit failed: ", e);
+        throw new MultiPaxosException("Leader commit failed: " + e.getMessage());
       }
     }
+    return result;
   }
   
-  private TAcceptorPhaseOneResp preempted(long aBlkId, TBallotNum aBallotNum) throws TException {
-    TAcceptorPhaseOneResp p1aResp = null;
-    if (compareBallotNums(aBallotNum, _leader.getBallotNum()) > 0) {
+  private void preempted(TBallotNum aBallotNum) throws NextSqlException {
+    TBallotNum lbn = _leader.getBallotNumClone();
+    if (compareBallotNums(aBallotNum, lbn) > 0) {
       _leader._active.set(false);
       _leader.increaseAndGetBN();
-      LOG.info("Leader increase the BN to " + _leader.getBallotNum().id + ":" +
-        _leader.getBallotNum().nodeid);
-      proposeAndAdopt(aBlkId, _leader.getBallotNum());
+      LOG.info("Leader increase the BN to {}:{}", lbn.id, lbn.nodeid);
+      proposeAndAdopt(lbn);
     }
-    return p1aResp;
   }
   
   // propose the new ballot
-  private void proposeAndAdopt(long aBlkId, TBallotNum aBallotNum) throws TException {
-    TAcceptorPhaseOneReq p1aReq = new TAcceptorPhaseOneReq(aBlkId, aBallotNum);
-    Set<Future<TAcceptorPhaseOneResp>> p1bResps = new HashSet<Future<TAcceptorPhaseOneResp>>();
+  private void proposeAndAdopt(TBallotNum aBallotNum) throws NextSqlException {
+    List<Future<TAcceptorPhaseOneResp>> p1bResps = new ArrayList<Future<TAcceptorPhaseOneResp>>();
     // send p1a msg to acceptors
-    for (Long accId: _acceptorLocs) {
-      TNetworkAddress accAddr = _replica._nodeMgr.getNode(accId);
+    for (TRepNode acc: _acceptorNodes) {
+      TAcceptorPhaseOneReq p1aReq = new TAcceptorPhaseOneReq(acc.replica_id, aBallotNum);
+      TNetworkAddress accAddr = _replica._nodeMgr.getNodeInfo(acc.node_id);
       if (accAddr == null) {
-        LOG.error("There is no Acceptor node mapping to the ID. (ID = " + accId + ")");
+        LOG.error("There is no Acceptor node mapping to the ID. (ID = " +
+          acc.node_id + ")");
         continue;
       }
       LOG.debug("Leader send p1a msg to aceptor(" + accAddr.getHostname() + ")");
-      if (accAddr.equals(SystemInfo.getNetworkAddress())) {
-        p1bResps.add(
-          _threadPool.submit(new SendPaxosMsg(PaxosMsgType.P1A, accAddr, p1aReq, true))
-        );
-      } else {
-        p1bResps.add(
-          _threadPool.submit(new SendPaxosMsg(PaxosMsgType.P1A, accAddr, p1aReq, false))
-        );
-      }
+      p1bResps.add(
+        _threadPool.submit(
+          new SendPaxosMsg(PaxosMsgType.P1A,
+                           accAddr,
+                           p1aReq,
+                           (acc.node_id == _replica._nodeMgr.getMyNodeId()))
+        )
+      );
     }
-    int accCnt = _acceptorLocs.size();
+    int accCnt = _acceptorNodes.size();
     int completeCnt = 0;
     boolean preempted = false;
     TAcceptorPhaseOneResp p1bResp = null;
@@ -316,9 +338,9 @@ public class Paxos {
                 ++completeCnt;
                 it.remove();
               } else {
-                LOG.info("Leader enter preempted mode. reqBN = " + 
-                  aBallotNum.id + ":" + aBallotNum.nodeid +
-                  ", respBN = " + p1bResp.getBallot_num().id + ":" + p1bResp.getBallot_num().nodeid);
+                LOG.info("Leader enter preempted mode. reqBN = {}:{}, respBN = {}:{}", 
+                  aBallotNum.id, aBallotNum.nodeid, p1bResp.getBallot_num().id,
+                  p1bResp.getBallot_num().nodeid);
                 preempted = true;
                 break;
               }
@@ -333,7 +355,7 @@ public class Paxos {
     }
     if (preempted && p1bResp != null) {
       // another leader is elected?
-      TAcceptorPhaseOneResp p1aResp = preempted(aBlkId, p1bResp.getBallot_num());
+      preempted(p1bResp.getBallot_num());
     } else {
       // update proposals map
       for (TAcceptedValue e: pvalues.values()) {
@@ -345,10 +367,12 @@ public class Paxos {
         Collections.sort(sorted);
         for (long slotNum : sorted) {
           try {
-            LOG.debug("Leader try to adopt pre-values: SN = " + slotNum);
-            acceptAndDecide(aBlkId, slotNum, _leader._proposals.get(slotNum));
-          } catch (TException e) {
-            LOG.error("Adopting a pre-value failed: " + e.getMessage());
+            LOG.debug("Leader try to adopt pre-values: SN = {}", slotNum);
+            acceptAndDecide(slotNum, _leader._proposals.get(slotNum));
+          } catch (NextSqlException e) {
+            LOG.error("Adopting a pre-value failed: SN = {}, {}", slotNum,
+              e.getMessage());
+            throw e;
           }
         }
       }
@@ -356,42 +380,41 @@ public class Paxos {
     }
   }
 
-  public TAcceptorPhaseOneResp AcceptorPhaseOne(TBallotNum aBn)
-      throws TException {
-    LOG.debug("AcceptorPhaseOne is requested in Paxos: BN = " +
-      aBn.id + "-" + aBn.nodeid);
-    TBallotNum bn = _acceptor.getBallotNum();
+  public TAcceptorPhaseOneResp AcceptorPhaseOne(TBallotNum aBn) {
+    LOG.debug("AcceptorPhaseOne is requested in Paxos: BN = {}:{}",
+      aBn.id, aBn.nodeid);
+    TBallotNum bn = _acceptor.getBallotNumClone();
     if (compareBallotNums(aBn, bn) > 0) {
       // TODO: need logging to stable storage
       _acceptor.setBallotNum(aBn);
-      LOG.info("Acceptor's BN is updated on P1A: from = " +
-        bn.id + "-" + bn.nodeid + ", to = " + aBn.id + "-" + aBn.nodeid);
+      LOG.info("Acceptor's BN is updated on P1A: from = {}:{}, to = {}:{}",
+        bn.id, bn.nodeid, aBn.id, aBn.nodeid);
       bn = aBn;
     }
-    TAcceptorPhaseOneResp resp = new TAcceptorPhaseOneResp(new TStatus(), bn, _acceptor.getAcceptVals());
+    TAcceptorPhaseOneResp resp = new TAcceptorPhaseOneResp(new TStatus(), bn,
+      _acceptor.getAcceptVals());
     return resp;
   }
 
-  public TAcceptorPhaseTwoResp AcceptorPhaseTwo(TBallotNum aBn, long aSlotNum, TOperation aOp)
-      throws TException {
-    LOG.debug("AcceptorPhaseTwo is requested in Paxos: BN = " +
-      aBn.id + "-" + aBn.nodeid + ", SN = " + aSlotNum);
-    TBallotNum bn = _acceptor.getBallotNum();
+  public TAcceptorPhaseTwoResp AcceptorPhaseTwo(TBallotNum aBn, long aSlotNum,
+      TOperation aOp) throws TException {
+    LOG.debug("AcceptorPhaseTwo is requested in Paxos: BN = {}:{}, SN = {}",
+      aBn.id, aBn.nodeid, aSlotNum);
+    TBallotNum bn = _acceptor.getBallotNumClone();
     if (compareBallotNums(aBn, bn) >= 0) {
       // TODO: need logging to stable storage
       _acceptor.setBallotNum(aBn);
       _acceptor.addAcceptVal(
         new TAcceptedValue(aBn, aSlotNum, aOp));
-      LOG.info("Acceptor accept the requested value on P2A: BN = " +
-        aBn.id + "-" + aBn.nodeid + ", SN = " + aSlotNum +
-        ", OPType = " + aOp.getOperation_type());
+      LOG.info("Acceptor accept the requested value on P2A: BN = {}:{}, SN = {}, OPType = {}",
+        aBn.id, aBn.nodeid, aSlotNum, aOp.getOperation_type());
       bn = aBn;
     }
     TAcceptorPhaseTwoResp resp = new TAcceptorPhaseTwoResp(new TStatus(), bn);
     return resp;
   }
 
-  public THeartbeatResp Heartbeat() throws TException {
+  public THeartbeatResp Heartbeat() {
     return null;
   }
 

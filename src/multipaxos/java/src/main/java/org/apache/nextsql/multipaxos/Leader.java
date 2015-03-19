@@ -31,23 +31,39 @@ public class Leader {
   }
   
   public TBallotNum getBallotNum() {
-    _readLock.lock();
-    TBallotNum bn = _ballotNum;
-    _readLock.unlock();
-    return bn;
+    try {
+      _readLock.lock();
+      return _ballotNum;
+    } finally {
+      _readLock.unlock();
+    }
+  }
+  
+  public TBallotNum getBallotNumClone() {
+    try {
+      _readLock.lock();
+      return new TBallotNum(_ballotNum);
+    } finally {
+      _readLock.unlock();
+    }
   }
   
   public void setBallotNum(TBallotNum aBN) {
-    _writeLock.lock();
-    _ballotNum = aBN;
-    _writeLock.unlock();
+    try {
+      _writeLock.lock();
+      _ballotNum = aBN;
+    } finally {
+      _writeLock.unlock();
+    }
   }
   
   public TBallotNum increaseAndGetBN() {
-    _writeLock.lock();
-    ++_ballotNum.id;
-    TBallotNum bn = _ballotNum;
-    _writeLock.unlock();
-    return bn;
+    try {
+      _writeLock.lock();
+      ++_ballotNum.id;
+      return _ballotNum;
+    } finally {
+      _writeLock.unlock();
+    }
   }
 }

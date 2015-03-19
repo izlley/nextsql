@@ -28,12 +28,12 @@ public class PaxosTServer implements PaxosService.Iface {
   @Override
   public TAcceptorPhaseOneResp AcceptorPhaseOne(TAcceptorPhaseOneReq aReq)
       throws TException {
-    Replica rep = _blkMgr.getReplicafromBlkID(aReq.blockId);
+    TAcceptorPhaseOneResp resp;
+    Replica rep = _blkMgr.getReplicafromRepId(aReq.repId);
     if (rep == null) {
-      LOG.error("The blockId(" + aReq.blockId + "is unknown");
-      TAcceptorPhaseOneResp resp =
-        new TAcceptorPhaseOneResp(new TStatus(TStatusCode.ERROR), null, null);
-      resp.getStatus().setError_message("The bolckId(" + aReq.blockId + "is unknown");
+      LOG.error("The replicaId(" + aReq.repId + "is unknown");
+      resp = new TAcceptorPhaseOneResp(new TStatus(TStatusCode.ERROR), null, null);
+      resp.getStatus().setError_message("The replicaId(" + aReq.repId + "is unknown");
       return resp;
     }
     return rep.getPaxos().AcceptorPhaseOne(aReq.ballot_num);
@@ -42,12 +42,12 @@ public class PaxosTServer implements PaxosService.Iface {
   @Override
   public TAcceptorPhaseTwoResp AcceptorPhaseTwo(TAcceptorPhaseTwoReq aReq)
       throws TException {
-    Replica rep = _blkMgr.getReplicafromBlkID(aReq.blockId);
+    TAcceptorPhaseTwoResp resp;
+    Replica rep = _blkMgr.getReplicafromRepId(aReq.repId);
     if (rep == null) {
-      LOG.error("The blockId(" + aReq.blockId + "is unknown");
-      TAcceptorPhaseTwoResp resp =
-        new TAcceptorPhaseTwoResp(new TStatus(TStatusCode.ERROR), null);
-      resp.getStatus().setError_message("The bolckId(" + aReq.blockId + "is unknown");
+      LOG.error("The replicaId(" + aReq.repId + "is unknown");
+      resp = new TAcceptorPhaseTwoResp(new TStatus(TStatusCode.ERROR), null);
+      resp.getStatus().setError_message("The replicaId(" + aReq.repId + "is unknown");
       return resp;
     }
     return rep.getPaxos().AcceptorPhaseTwo(aReq.ballot_num, aReq.slot_num, aReq.operation);
@@ -62,28 +62,28 @@ public class PaxosTServer implements PaxosService.Iface {
   @Override
   public TLeaderAcceptResp LeaderAccept(TLeaderAcceptReq aReq)
       throws TException {
-    Replica rep = _blkMgr.getReplicafromBlkID(aReq.blockId);
+    TLeaderAcceptResp resp;
+    Replica rep = _blkMgr.getReplicafromRepId(aReq.repId);
     if (rep == null) {
-      LOG.error("The blockId(" + aReq.blockId + "is unknown");
-      TLeaderAcceptResp resp =
-        new TLeaderAcceptResp(new TStatus(TStatusCode.ERROR));
-      resp.getStatus().setError_message("The bolckId(" + aReq.blockId + "is unknown");
+      LOG.error("The replicaId(" + aReq.repId + "is unknown");
+      resp = new TLeaderAcceptResp(new TStatus(TStatusCode.ERROR));
+      resp.getStatus().setError_message("The replicaId(" + aReq.repId + "is unknown");
       return resp;
     }
-    return rep.getPaxos().LeaderAccept(aReq.blockId, aReq.slot_num, aReq.operation);
+    return rep.getPaxos().LeaderAccept(aReq.slot_num, aReq.operation);
   }
 
   @Override
   public TLeaderProposeResp LeaderPropose(TLeaderProposeReq aReq)
       throws TException {
-    Replica rep = _blkMgr.getReplicafromBlkID(aReq.blockId);
+    Replica rep = _blkMgr.getReplicafromRepId(aReq.repId);
     if (rep == null) {
-      LOG.error("The blockId(" + aReq.blockId + "is unknown");
+      LOG.error("The replicaId(" + aReq.repId + "is unknown");
       TLeaderProposeResp resp =
         new TLeaderProposeResp(new TStatus(TStatusCode.ERROR), null);
-      resp.getStatus().setError_message("The bolckId(" + aReq.blockId + "is unknown");
+      resp.getStatus().setError_message("The replicaId(" + aReq.repId + "is unknown");
       return resp;
     }
-    return rep.getPaxos().LeaderPropose(aReq.blockId, aReq.ballot_num);
+    return rep.getPaxos().LeaderPropose(aReq.ballot_num);
   }
 }
