@@ -215,7 +215,7 @@ public class BlockManager implements IBlockManager {
       }
     }
     if (localRepId == null) {
-      throw new NextSqlServerException("Reserved local replca id is null.");
+      throw new NextSqlException("Reserved local replca id is null.");
     }
     TLeaderRep leaderRep = new TLeaderRep(replicas.get(leaderIdx).replica_id,
       _nodeMgr.getNodeInfo(replicas.get(leaderIdx).node_id));
@@ -224,7 +224,7 @@ public class BlockManager implements IBlockManager {
     try {
       _writeLock.lock();
       if (_repIdReplicaMap.containsKey(localRepId)) {
-        throw new NextSqlServerException("The replcaId (" + localRepId + ") already exists.");
+        throw new NextSqlException("The replcaId (" + localRepId + ") already exists.");
       }
       _repIdReplicaMap.put(localRepId, new Replica(aBlkId, localRepId, replicas, leaderIdx,
         _storageMgr, this, _nodeMgr, (_nodeMgr.getMyNodeId() == replicas.get(leaderIdx).node_id)));
@@ -240,7 +240,7 @@ public class BlockManager implements IBlockManager {
       _writeLock.lock();
       if (_cblkMeta.blkidleader_map.containsKey(aBlkId) ||
           _blkIdRepMeta.blkidrepmeta_map.containsKey(aBlkId)) {
-        throw new NextSqlServerException("BlockId (" + aBlkId + ") is already exists.");
+        throw new NextSqlException("BlockId (" + aBlkId + ") is already exists.");
       }
       _cblkMeta.blkidleader_map.put(aBlkId, aLrep);
       ++_cblkMeta.version;
@@ -255,23 +255,23 @@ public class BlockManager implements IBlockManager {
   public void addNewFiletoCBlockMeta(String aFilePath, String aBlkId, String aLRepId, long aLNodeId)
       throws NextSqlException {
     if (aFilePath == null || aLRepId == null) {
-      throw new NextSqlServerException("Invalid filepath or replica Id. (null)");
+      throw new NextSqlException("Invalid filepath or replica Id. (null)");
     }
     List<String> blkIds = new LinkedList<String>();
     blkIds.add(aBlkId);
     TNetworkAddress leaderAddr = _nodeMgr.getNodeInfo(aLNodeId);
     if (leaderAddr == null) {
-      throw new NextSqlServerException("The leader nodeId ( " + aLNodeId + " ) does not exists.");
+      throw new NextSqlException("The leader nodeId ( " + aLNodeId + " ) does not exists.");
     }
     TLeaderRep Lrep = new TLeaderRep(aLRepId, leaderAddr);
     // O(1)
     if (_cblkMeta.fileblkid_map.containsKey(aFilePath)) {
-      throw new NextSqlServerException("The file ( " + aFilePath
+      throw new NextSqlException("The file ( " + aFilePath
         + " ) already exists.");
     }
     // O(1)
     if (_cblkMeta.blkidleader_map.containsKey(aBlkId)) {
-      throw new NextSqlServerException("The block ( " + aBlkId
+      throw new NextSqlException("The block ( " + aBlkId
         + " ) already exists.");
     }
     _cblkMeta.fileblkid_map.put(aFilePath, blkIds);
@@ -283,11 +283,11 @@ public class BlockManager implements IBlockManager {
   public void addReplicaAndMeta(String aBlkId, TReplicaMeta aRepMeta, String aRepId,
       Replica aRep) throws NextSqlException {
     if (_blkIdRepMeta.blkidrepmeta_map.containsKey(aBlkId)) {
-      throw new NextSqlServerException("The block ( " + aBlkId
+      throw new NextSqlException("The block ( " + aBlkId
           + " ) already exists.");
     }
     if (_repIdReplicaMap.containsKey(aRepId)) {
-      throw new NextSqlServerException("The replicaId ( " + aRepId
+      throw new NextSqlException("The replicaId ( " + aRepId
           + " ) already exists.");
     }
     _blkIdRepMeta.blkidrepmeta_map.put(aBlkId, aRepMeta);
@@ -328,7 +328,7 @@ public class BlockManager implements IBlockManager {
       }
     }
     if (localRepId == null) {
-      throw new NextSqlServerException("The Paxos group does not include current node" +
+      throw new NextSqlException("The Paxos group does not include current node" +
         " or the replica already exists");
     }
     try {
@@ -350,7 +350,7 @@ public class BlockManager implements IBlockManager {
       _writeLock.lock();
       List<String> blocks = _cblkMeta.fileblkid_map.remove(aFilePath);
       if (blocks == null) {
-        throw new NextSqlServerException("The file (" + aFilePath + ") does not exist.");
+        throw new NextSqlException("The file (" + aFilePath + ") does not exist.");
       }
       for (String blkId: blocks) {
         _cblkMeta.blkidleader_map.remove(blkId);
@@ -371,11 +371,11 @@ public class BlockManager implements IBlockManager {
   }
   
   @Override
-  public void removeBlock(String aBlkId) throws NextSqlServerException {
+  public void removeBlock(String aBlkId) throws NextSqlException {
     try {
       _writeLock.lock();
       if (_cblkMeta.blkidleader_map.remove(aBlkId) == null) {
-        throw new NextSqlServerException("The blockId (" + aBlkId + ") does not exist.");
+        throw new NextSqlException("The blockId (" + aBlkId + ") does not exist.");
       }
       ++_cblkMeta.version;
       TReplicaMeta repMeta = _blkIdRepMeta.blkidrepmeta_map.remove(aBlkId);

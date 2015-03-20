@@ -48,7 +48,7 @@ public class ReplicaTServer implements ReplicaService.Iface {
         List<String> repIds = _blkMgr.getLocalRepIdfromBlkId("DDL");
         if (repIds.size() == 0) {
           LOG.error("There is no replicaId for DDL at this node.");
-          throw new NextSqlServerException(
+          throw new NextSqlException(
             "There is no replicaId for DDL at this node."
           );
         }
@@ -56,7 +56,7 @@ public class ReplicaTServer implements ReplicaService.Iface {
         rep = _blkMgr.getReplicafromRepId(repIds.get(0));
         if (rep == null) {
           LOG.error("Replica is corrupted.");
-          throw new NextSqlServerException(
+          throw new NextSqlException(
             "Replica is corrupted."
           );
         }
@@ -75,7 +75,7 @@ public class ReplicaTServer implements ReplicaService.Iface {
 
         TExecuteOperationResp openResult = rep.ExecuteOperation(op);
         if (openResult.getStatus().getStatus_code() != TStatusCode.SUCCESS) {
-          throw new NextSqlServerException(openResult.getStatus().error_message);
+          throw new NextSqlException(openResult.getStatus().error_message);
         }
         resp.setBlkId(blkId);
       } catch (NextSqlException e) {
@@ -99,7 +99,7 @@ public class ReplicaTServer implements ReplicaService.Iface {
     try {
       List<String> blockIds = _blkMgr.getBlkIdsfromPath(aReq.file_path);
       if (blockIds == null) {
-        throw new NextSqlServerException(
+        throw new NextSqlException(
           "The file does not exist. ( " + aReq.file_path + " )"
         );
       }
@@ -107,7 +107,7 @@ public class ReplicaTServer implements ReplicaService.Iface {
       List<String> repIds = _blkMgr.getLocalRepIdfromBlkId("DDL");
       if (repIds.size() == 0) {
         LOG.error("There is no replicaId for DDL at this node.");
-        throw new NextSqlServerException(
+        throw new NextSqlException(
           "There is no replicaId for DDL at this node."
         );
       }
@@ -115,7 +115,7 @@ public class ReplicaTServer implements ReplicaService.Iface {
       rep = _blkMgr.getReplicafromRepId(repIds.get(0));
       if (rep == null) {
         LOG.error("Replica is corrupted.");
-        throw new NextSqlServerException("Replica is corrupted.");
+        throw new NextSqlException("Replica is corrupted.");
       }
       // 3. send to Paxos protocol
       TOperation op = new TOperation(0L, RandomIdGenerator.getNewOperationId(),
@@ -124,7 +124,7 @@ public class ReplicaTServer implements ReplicaService.Iface {
 
       TExecuteOperationResp openResult = rep.ExecuteOperation(op);
       if (openResult.getStatus().getStatus_code() != TStatusCode.SUCCESS) {
-        throw new NextSqlServerException(openResult.getStatus().error_message);
+        throw new NextSqlException(openResult.getStatus().error_message);
       }
     } catch (NextSqlException e) {
       LOG.error(e.getMessage(), e);
@@ -149,7 +149,7 @@ public class ReplicaTServer implements ReplicaService.Iface {
     try {
       if (aReq.isSetFile_path()) {
         if (!_blkMgr.isFileExists(aReq.file_path)) {
-          throw new NextSqlServerException("The file ( " + aReq.file_path
+          throw new NextSqlException("The file ( " + aReq.file_path
             + " ) does not exist");
         }
         rep = _blkMgr.getLocalReplica(aReq.file_path, null);

@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import org.apache.nextsql.common.NextSqlException;
 import org.apache.nextsql.multipaxos.nodemanager.INodeManager;
 import org.apache.nextsql.thrift.TBallotNum;
 import org.apache.nextsql.thrift.TNetworkAddress;
@@ -22,10 +23,10 @@ public class Leader {
   private final Lock _writeLock = _bnLock.writeLock();
   protected ConcurrentHashMap<Long, TOperation> _proposals = new ConcurrentHashMap<Long, TOperation>();
   
-  public Leader(INodeManager aNodeMgr) throws MultiPaxosException {
+  public Leader(INodeManager aNodeMgr) throws NextSqlException {
     TNetworkAddress addr = SystemInfo.getNetworkAddress();
     if (addr == null) {
-      throw new MultiPaxosException("getNetworkAddress failed");
+      throw new NextSqlException("getNetworkAddress failed");
     }
     _ballotNum = new TBallotNum(0L, aNodeMgr.getNodeId(addr));
   }

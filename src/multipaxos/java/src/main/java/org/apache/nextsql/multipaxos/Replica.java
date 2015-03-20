@@ -1,10 +1,8 @@
 package org.apache.nextsql.multipaxos;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -62,8 +60,10 @@ public class Replica {
    */
   private AtomicLong _slotNum = new AtomicLong(0);
   private AtomicLong _decisionSlotNum = new AtomicLong(1);
-  private ConcurrentHashMap<Long, TOperation> _proposals = new ConcurrentHashMap<Long, TOperation>();
-  private ConcurrentHashMap<Long, TOperation> _decisions = new ConcurrentHashMap<Long, TOperation>();
+  private ConcurrentHashMap<Long, TOperation> _proposals =
+    new ConcurrentHashMap<Long, TOperation>();
+  private ConcurrentHashMap<Long, TOperation> _decisions =
+    new ConcurrentHashMap<Long, TOperation>();
   private final Executor _executor;
   private final Paxos _paxosProtocol;
   protected final INodeManager _nodeMgr;
@@ -83,7 +83,7 @@ public class Replica {
   
   public Replica(String aBlkId, String aRepId, List<TRepNode> aReps, int aLeaderIdx,
       IStorage aStorage, IBlockManager aBlkMgr, INodeManager aNodeMgr, boolean aIsLeader)
-        throws MultiPaxosException {
+        throws NextSqlException {
     this._blockId = aBlkId;
     this._replicaId = aRepId;
     this._leaderIdx = aLeaderIdx;
@@ -120,10 +120,10 @@ public class Replica {
       throws NextSqlException {
     LOG.debug("ExecuteOperation is requested to the replica: repid = " + _replicaId);
     TExecuteOperationResp resp = new TExecuteOperationResp();
-    // check duplicated operation
+    // check duplicated operation in the decisions map
     if (containsSameOp(_decisions, aOp)) {
       LOG.error("Duplicated operation is requested to replica");
-      throw new MultiPaxosException("Duplicated operation is requested to replica");
+      throw new NextSqlException("Duplicated operation is requested to replica");
     }
     ///////////////////
     // Propose phase
@@ -136,7 +136,7 @@ public class Replica {
     // send accept msg to the leader
     TLeaderAcceptResp acceptResp = null;
     // TODO: read op can be requested to any replica
-    if (_leader) { // || aOp.getOperation_type() == TOpType.OP_READ) {
+    if (_leader) { // || (aOp.getOperation_type() == TOpType.OP_READ)) {
       acceptResp = _paxosProtocol.LeaderAccept(newSlotNum, aOp);
     } else {
       TRepNode lRepNode = _replicaNodes.get(_leaderIdx);
@@ -170,8 +170,8 @@ public class Replica {
     for (Entry<Long, TOperation> entry: _decisions.entrySet()) {
       if (entry.getKey() < _decisionSlotNum.get() &&
           entry.getValue().operation_handle == aOp.operation_handle) {
-        LOG.debug("Skip performing duplicated operation. preSN = " + entry.getKey() +
-          ", currSN = " + _decisionSlotNum.get());
+        LOG.debug("Skip performing duplicated operation. preSN = {}, currSN = {}",
+          entry.getKey(), _decisionSlotNum.get());
         _decisionSlotNum.incrementAndGet();
         return;
       }
@@ -181,7 +181,6 @@ public class Replica {
                    aOp.getDdl_param(),
                    aOp.getRw_param(),
                    aRes);
-    _decisionSlotNum.incrementAndGet();
   }
 
   public TDecisionResp Decision(long aSlotNum, TOperation aOp) throws TException {
@@ -190,11 +189,13 @@ public class Replica {
     _decisions.put(aSlotNum, aOp);
     List<Future<TExecuteOperationResp>> execOpResps =
       new ArrayList<Future<TExecuteOperationResp>>();
+    // TODO : I don't know this works properly
+    // execute operations in sequential order
     for (TOperation op = _decisions.get(_decisionSlotNum); op != null
         ; op = _decisions.get(_decisionSlotNum)) {
       TOperation pop = _proposals.get(_decisionSlotNum);
       if (pop != null && !pop.equals(op)) {
-        // need error handling?
+        // duplicated slotnum in proposal map should be assigned a new slotnum
         // what if it's a read op?
         execOpResps.add(_threadPool.submit(new ExecuteDupSlotOp(pop)));
       }
@@ -202,10 +203,11 @@ public class Replica {
       try {
         TExecResult result = new TExecResult();
         perform(op, result);
+        long curSlot = _decisionSlotNum.getAndIncrement();
         // only leader returns the operation result value
-        if (_leader) {
+        if (_leader) { // && curSlot == aSlotNum) {
           resp.setResult(result);
-        }
+        } // else is lagging case?
       } catch (NextSqlException e) {
         resp.setStatus(new TStatus(TStatusCode.ERROR));
         resp.getStatus().setError_message("Storage IO failure: " + e.getMessage());

@@ -53,7 +53,7 @@ public class NodeManager implements INodeManager {
       }
     }
     if (_myNodeId == -1) {
-      throw new NextSqlServerException("NextSql nodelist configuration doesn't include current node.");
+      throw new NextSqlException("NextSql nodelist configuration doesn't include current node.");
     }
     isInitialized = true;
   }
@@ -90,7 +90,7 @@ public class NodeManager implements INodeManager {
     try {
       _writeLock.lock();
       if (_nodeInfo.nodeidinfo_map.containsKey(nid)) {
-        throw new NextSqlServerException("The NodeID(" + nid + ") is already exists"); 
+        throw new NextSqlException("The NodeID(" + nid + ") is already exists"); 
       }
       _nodeInfo.nodeidinfo_map.put(nid, aAddr);
       ++_nodeInfo.version;
@@ -116,7 +116,7 @@ public class NodeManager implements INodeManager {
   
   public List<Long> getRandomNodeList(int aSize) throws NextSqlException {
     if (aSize > _nodeInfo.nodeidinfo_map.size())
-      throw new NextSqlServerException("Number of nodes is smaller than the replication factor.");
+      throw new NextSqlException("Number of nodes is smaller than the replication factor.");
     List<Long> nodelist = new ArrayList<Long>(aSize);
     try {
       Field table = HashMap.class.getDeclaredField("table");
@@ -136,7 +136,7 @@ public class NodeManager implements INodeManager {
         }
       }
     } catch (Exception e) {
-      throw new NextSqlServerException(e.getMessage());
+      throw new NextSqlException(e.getMessage());
     } finally {
       _readLock.unlock();
     }

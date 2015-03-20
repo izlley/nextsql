@@ -14,6 +14,7 @@ import org.apache.nextsql.thrift.TOpenFileReq;
 import org.apache.nextsql.thrift.TOpenFileResp;
 import org.apache.nextsql.thrift.TOperation;
 import org.apache.nextsql.thrift.TRWparam;
+import org.apache.nextsql.thrift.TStatusCode;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.transport.TSocket;
@@ -32,7 +33,6 @@ public class NSOperation {
   private boolean _isClosed = false;
   private long _defaultRWOffset = 0L;
   private long _defaultRWSize = 1024L;
-  private static ReentrantLock _transportLock = new ReentrantLock(true);
   
   public class Block {
     final String _blkId;
@@ -111,58 +111,76 @@ public class NSOperation {
     op.setRw_param(new TRWparam(aInBuff, aOffset, aSize));
     
     if (aType == OpType.READ || aType == OpType.WRITE || aType == OpType.UPDATE) {
-      // These ops should be requested to the leader. so check leader location
-      if (_connection._blockMeta != null) {
-        TLeaderRep laddr = null;
-        if (aBlk != null) {
-          laddr = _connection._blockMeta.blkidleader_map.get(aBlk._blkId);
-        } else if (aFilename != null) {
-          List<String> blkIds = _connection._blockMeta.fileblkid_map
-              .get(aFilename);
-          laddr = _connection._blockMeta.blkidleader_map.get(blkIds.get(0));
-        }
-        if (laddr != null) {
-          if (!(laddr.leader_repaddr.hostname.equals(_host)) ||
-              !(laddr.leader_repaddr.rsm_port == _port)) {
-            reConnect(laddr.leader_repaddr.hostname, laddr.leader_repaddr.rsm_port);
-          }
-        }
-      } else {
-        try {
-          // update block meta
-          TGetCBlockMetaResp getMetaResp =
-            _client.GetCBlockMeta(
-              new TGetCBlockMetaReq(
-                (_connection._blockMeta != null)? _connection._blockMeta.version: 0L
-              )
-            );
-          Utils.verifySuccess(getMetaResp.getStatus());
-          if (getMetaResp.isSetBlkmeta()) {
-            _connection._blockMeta = getMetaResp.blkmeta;
-          }
-        } catch (NSQLException e) {
-          throw e;
-        } catch (Exception e) {
-          throw new NSQLException(e.toString(), e);
-        }
-      }
+      CheckReConnect(aBlk, aFilename);
     }
     
     try {
       TExecuteOperationReq req;
-      if (aBlk == null && aFilename != null) {
-        req = new TExecuteOperationReq(null, op, _connection._blockMeta.version);
-        req.setFile_path(aFilename);
-      } else {
-        req = new TExecuteOperationReq(aBlk._blkId, op, _connection._blockMeta.version);
+      TExecuteOperationResp resp = null;
+      // If REQUESTED_WRONG_NODE is returned, retry 3 times
+      for (int i = 0; i < 3; i++) {
+        if (aBlk == null && aFilename != null) {
+          req = new TExecuteOperationReq(null, op, NSConnection._blockMeta.version);
+          req.setFile_path(aFilename);
+        } else {
+          req = new TExecuteOperationReq(aBlk._blkId, op,
+            NSConnection._blockMeta.version);
+        }
+        resp = _client.ExecuteOperation(req);
+        if (resp.getStatus().getStatus_code() == TStatusCode.REQUESTED_WRONG_NODE) {
+          if (resp.isSetBlkmeta()) {
+            NSConnection._blockMeta = resp.blkmeta;
+            CheckReConnect(aBlk, aFilename);
+          } else {
+            break;
+          }
+        } else {
+          break;
+        }
       }
-      TExecuteOperationResp resp = _client.ExecuteOperation(req);
       Utils.verifySuccess(resp.getStatus());
       return new NSResultSet(resp.result);
     } catch (NSQLException e) {
       throw e;
     } catch (Exception e) {
       throw new NSQLException(e.toString(), e);
+    }
+  }
+  
+  private void CheckReConnect(Block aBlk, String aFilename) throws NSQLException {
+    if (NSConnection._blockMeta != null) {
+      TLeaderRep laddr = null;
+      if (aBlk != null) {
+        laddr = NSConnection._blockMeta.blkidleader_map.get(aBlk._blkId);
+      } else if (aFilename != null) {
+        List<String> blkIds = NSConnection._blockMeta.fileblkid_map
+            .get(aFilename);
+        laddr = NSConnection._blockMeta.blkidleader_map.get(blkIds.get(0));
+      }
+      if (laddr != null) {
+        if (!(laddr.leader_repaddr.hostname.equals(_host)) ||
+            !(laddr.leader_repaddr.rsm_port == _port)) {
+          reConnect(laddr.leader_repaddr.hostname, laddr.leader_repaddr.rsm_port);
+        }
+      }
+    } else {
+      try {
+        // update block meta
+        TGetCBlockMetaResp getMetaResp =
+          _client.GetCBlockMeta(
+            new TGetCBlockMetaReq(
+              (NSConnection._blockMeta != null)? NSConnection._blockMeta.version: 0L
+            )
+          );
+        Utils.verifySuccess(getMetaResp.getStatus());
+        if (getMetaResp.isSetBlkmeta()) {
+          NSConnection._blockMeta = getMetaResp.blkmeta;
+        }
+      } catch (NSQLException e) {
+        throw e;
+      } catch (Exception e) {
+        throw new NSQLException(e.toString(), e);
+      }
     }
   }
   
@@ -189,6 +207,9 @@ public class NSOperation {
   }
   
   protected void openTransportInOp() throws NSQLException {
+    if (_transport != null) {
+      _transport.close();
+    }
     _transport = new TSocket(_host, _port, _connection._socketTimeout);
 
     TProtocol protocol = new TBinaryProtocol(_transport);
