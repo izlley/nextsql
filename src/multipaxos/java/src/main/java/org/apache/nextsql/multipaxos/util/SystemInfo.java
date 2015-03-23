@@ -21,6 +21,8 @@ public class SystemInfo {
       addr.hostname = InetAddress.getLocalHost().getHostAddress();
       addr.rsm_port = _rsmPort;
       addr.paxos_port = _paxosPort;
+      LOG.debug("Get local address: hostname={}, rsmport={}, paxosport={}",
+        addr.hostname, _rsmPort, _paxosPort);
     } catch (UnknownHostException e) {
       LOG.error("getNetworkAddress failed: " + e.getMessage());
       return null;
