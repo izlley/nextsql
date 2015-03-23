@@ -40,8 +40,9 @@ public class NodeManager implements INodeManager {
   }
   
   public void initialize() throws NextSqlException {
-    String[] nodeList = NextSqlServer._conf.getStrings(NextSqlConfigKeys.NS_NODE_ADDR_LIST,
-      NextSqlConfigKeys.NS_NODE_ADDR_LIST_DEFAULT);
+    String[] nodeList =
+      NextSqlServer._conf.getStrings(NextSqlConfigKeys.NS_NODE_HOSTNAME_LIST,
+        NextSqlConfigKeys.NS_NODE_ADDR_LIST_DEFAULT);
     long nid;
     for (int i = 0; i < nodeList.length; i++) {
       String ip;

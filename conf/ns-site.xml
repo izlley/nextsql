@@ -34,9 +34,9 @@
   <description>Paxos server's thrift workerthread max size</description>
 </property>
 <property>
-  <name>ns.node.addr.list</name>
-  <value>127.0.0.1</value>
-  <description>List of node addresses to be included in a NScluster</description>
+  <name>ns.node.hostname.list</name>
+  <value>localhost</value>
+  <description>List of node hostnames to be included in a NScluster</description>
 </property>
 <property>
   <name>ns.replication</name>
