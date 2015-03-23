@@ -132,8 +132,8 @@ public class NextSqlServer {
         NextSqlConfigKeys.NS_PAXOS_WORKERTHREAD_MAX_DEFAULT));
       TServer server = new TThreadPoolServer(sArgs);
       
-      System.out.println("Starting the NextSql-replica server...");
-      LOG.info("Starting the NextSql-replica server...");
+      System.out.println("Starting the NextSql-paxos server...");
+      LOG.info("Starting the NextSql-paxos server...");
       server.serve();
     } catch (Exception e) {
       LOG.error("FATAL error : ", e);

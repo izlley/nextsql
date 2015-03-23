@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+
+<configuration>
+<!-- Querycache Execution Parameters -->
+<property>
+  <name>ns.replica.server.port</name>
+  <value>6652</value>
+  <description>NextSql replica service port number</description>
+</property>
+<property>
+  <name>ns.paxos.server.port</name>
+  <value>6653</value>
+  <description>NextSql multi-paxos service port number</description>
+</property>
+<property>
+  <name>ns.replica.workerthread.min</name>
+  <value>16</value>
+  <description>Replica server's thrift workerthread min size</description>
+</property>
+<property>
+  <name>ns.replica.workerthread.max</name>
+  <value>64</value>
+  <description>Replica server's thrift workerthread max size</description>
+</property>
+<property>
+  <name>ns.paxos.workerthread.min</name>
+  <value>16</value>
+  <description>Paxos server's thrift workerthread min size</description>
+</property>
+<property>
+  <name>ns.paxos.workerthread.max</name>
+  <value>64</value>
+  <description>Paxos server's thrift workerthread max size</description>
+</property>
+<property>
+  <name>ns.node.addr.list</name>
+  <value>127.0.0.1</value>
+  <description>List of node addresses to be included in a NScluster</description>
+</property>
+<property>
+  <name>ns.replication</name>
+  <value>3</value>
+  <description>Data replication factor</description>
+</property>
+<!--property>
+  <name>ns.custom.storage</name>
+  <value>TEST</value>
+  <description>custom storage class path</description>
+</property-->
+</configuration>

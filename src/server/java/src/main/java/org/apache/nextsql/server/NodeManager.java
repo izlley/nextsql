@@ -1,6 +1,8 @@
 package org.apache.nextsql.server;
 
 import java.lang.reflect.Field;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -42,7 +44,14 @@ public class NodeManager implements INodeManager {
       NextSqlConfigKeys.NS_NODE_ADDR_LIST_DEFAULT);
     long nid;
     for (int i = 0; i < nodeList.length; i++) {
-      nid = addNode(new TNetworkAddress(nodeList[i],
+      String ip;
+      try {
+        ip = InetAddress.getByName(nodeList[i]).getHostAddress();
+      } catch (UnknownHostException e) {
+        LOG.error("Unknown hostname : " + nodeList[i]);
+        throw new NextSqlException("Unknown hostname : " + nodeList[i]);
+      }
+      nid = addNode(new TNetworkAddress(ip,
           NextSqlServer._conf.getInt(NextSqlConfigKeys.NS_REPLICA_SERVER_PORT,
             NextSqlConfigKeys.NS_REPLICA_SERVER_PORT_DEFAULT),
           NextSqlServer._conf.getInt(NextSqlConfigKeys.NS_PAXOS_SERVER_PORT,
