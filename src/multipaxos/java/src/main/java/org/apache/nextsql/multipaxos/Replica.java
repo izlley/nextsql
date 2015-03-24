@@ -94,7 +94,7 @@ public class Replica {
     this._storage = aStorage;
     this._executor = new Executor(this);
     // replica, leader, acceptor are co-located
-    this._paxosProtocol = new Paxos(this, aReps);
+    this._paxosProtocol = new Paxos(this, aReps, aIsLeader);
   }
   
   public Paxos getPaxos() {
@@ -191,9 +191,9 @@ public class Replica {
       new ArrayList<Future<TExecuteOperationResp>>();
     // TODO : I don't know this works properly
     // execute operations in sequential order
-    for (TOperation op = _decisions.get(_decisionSlotNum); op != null
-        ; op = _decisions.get(_decisionSlotNum)) {
-      TOperation pop = _proposals.get(_decisionSlotNum);
+    for (TOperation op = _decisions.get(_decisionSlotNum.get()); op != null
+        ; op = _decisions.get(_decisionSlotNum.get())) {
+      TOperation pop = _proposals.get(_decisionSlotNum.get());
       if (pop != null && !pop.equals(op)) {
         // duplicated slotnum in proposal map should be assigned a new slotnum
         // what if it's a read op?

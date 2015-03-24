@@ -35,6 +35,7 @@ public class TestStorage implements IStorage {
     try {
       _bfw.append(dateFormat.format(new Date()) + ": [ReadOp], offset=" + offset
         + ", size=" + size + "\n");
+      _bfw.flush();
     } catch (IOException e) {
       throw new NextSqlException("ReadOp Failed : offset=" + offset + ", size="
         + size);
@@ -48,6 +49,7 @@ public class TestStorage implements IStorage {
       _bfw.append(dateFormat.format(new Date()) + ": [WriteOp], buf=" + 
         new String(buf, Charset.forName("UTF-8")) + "offset=" + offset + ", size="
           + size + "\n");
+      _bfw.flush();
     } catch (IOException e) {
       throw new NextSqlException("WriteOp Failed : buf=" + 
         new String(buf, Charset.forName("UTF-8")) + "offset=" + offset + ", size="
@@ -60,7 +62,8 @@ public class TestStorage implements IStorage {
   public void open(String filepath, String mode) throws NextSqlException {
     try {
       _bfw.append(dateFormat.format(new Date()) + ": [OpenOp], " + filepath +
-        " is opened.");
+        " is opened.\n");
+      _bfw.flush();
     } catch (IOException e) {
       throw new NextSqlException("OpenOp Failed : filepath = " + filepath);
     }
@@ -70,7 +73,8 @@ public class TestStorage implements IStorage {
   public void delete(String filepath) throws NextSqlException {
     try {
       _bfw.append(dateFormat.format(new Date()) + ": [DeleteOp], " + filepath +
-        " is deleted.");
+        " is deleted.\n");
+      _bfw.flush();
     } catch (IOException e) {
       throw new NextSqlException("DeleteOp Failed : filepath = " + filepath);
     }

@@ -106,7 +106,7 @@ public class NSOperation {
         throw new NSQLException("Unknown operation type.");
     }
     op = new TOperation(0L, _opId, type);
-    op.setRw_param(new TRWparam(aInBuff, aOffset, aSize));
+    op.setRw_param(new TRWparam(aOffset, aSize).setBuffer(aInBuff));
     
     if (aType == NSOpType.READ || aType == NSOpType.WRITE || aType == NSOpType.UPDATE) {
       CheckReConnect(aBlk, aFilename);

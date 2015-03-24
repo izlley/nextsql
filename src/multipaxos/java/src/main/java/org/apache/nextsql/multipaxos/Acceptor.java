@@ -29,6 +29,7 @@ public class Acceptor {
   }
   
   public TBallotNum getBallotNum() {
+    if (_ballotNum == null) return null;
     try {
       _readLock.lock();
       return _ballotNum;
@@ -38,6 +39,7 @@ public class Acceptor {
   }
   
   public TBallotNum getBallotNumClone() {
+    if (_ballotNum == null) return null;
     try {
       _readLock.lock();
       return new TBallotNum(_ballotNum);

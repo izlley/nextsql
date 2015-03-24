@@ -20,6 +20,7 @@ import org.apache.thrift.protocol.TProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.nextsql.multipaxos.util.SystemInfo;
 import org.apache.nextsql.thrift.PaxosService;
 import org.apache.nextsql.thrift.ReplicaService;
 import org.apache.nextsql.thrift.TAcceptedValue;
@@ -132,10 +133,17 @@ public class Paxos {
     }
   }
   
-  public Paxos(Replica aReplica, List<TRepNode> aReps) throws NextSqlException {
+  public Paxos(Replica aReplica, List<TRepNode> aReps, boolean aIsLeader)
+      throws NextSqlException {
     this._replica = aReplica;
     this._acceptorNodes = aReps;
-    this._leader = new Leader(_replica._nodeMgr);
+    this._leader =
+      new Leader(
+        new TBallotNum(
+          0L, aReplica._nodeMgr.getNodeId(SystemInfo.getNetworkAddress())
+        ),
+        aIsLeader
+      );
     this._acceptor = new Acceptor();
   }
 
@@ -399,8 +407,9 @@ public class Paxos {
         bn.id, bn.nodeid, aBn.id, aBn.nodeid);
       bn = aBn;
     }
-    TAcceptorPhaseOneResp resp = new TAcceptorPhaseOneResp(new TStatus(), bn,
-      _acceptor.getAcceptVals());
+    TAcceptorPhaseOneResp resp =
+      new TAcceptorPhaseOneResp(new TStatus(TStatusCode.SUCCESS), bn,
+        _acceptor.getAcceptVals());
     return resp;
   }
 
@@ -408,7 +417,7 @@ public class Paxos {
       TOperation aOp) throws TException {
     LOG.debug("AcceptorPhaseTwo is requested in Paxos: BN = {}:{}, SN = {}",
       aBn.id, aBn.nodeid, aSlotNum);
-    TBallotNum bn = _acceptor.getBallotNumClone();
+    TBallotNum bn =_acceptor.getBallotNumClone();
     if (compareBallotNums(aBn, bn) >= 0) {
       // TODO: need logging to stable storage
       _acceptor.setBallotNum(aBn);
@@ -418,10 +427,12 @@ public class Paxos {
         aBn.id, aBn.nodeid, aSlotNum, aOp.getOperation_type());
       bn = aBn;
     }
-    TAcceptorPhaseTwoResp resp = new TAcceptorPhaseTwoResp(new TStatus(), bn);
+    TAcceptorPhaseTwoResp resp =
+      new TAcceptorPhaseTwoResp(new TStatus(TStatusCode.SUCCESS), bn);
     return resp;
   }
 
+  // Does this need replica-level heartbeat
   public THeartbeatResp Heartbeat() {
     return null;
   }
@@ -430,15 +441,25 @@ public class Paxos {
   // if bn1 is equal to bn2, then return 0
   // if bn1 is less than bn2, than return -1
   static private int compareBallotNums(TBallotNum aBn1, TBallotNum aBn2) {
-    if (aBn1.getId() == aBn2.getId() &&
-        aBn1.getNodeid() == aBn2.getNodeid()) {
-      return 0;
-    } else if ((aBn1.getId() > aBn2.getId()) || (aBn1.getId() == aBn2.getId() &&
-        (aBn1.getNodeid() > aBn2.getNodeid()))
-      ) {
-      return 1;
+    int res;
+    if (aBn1 == null || aBn2 == null) {
+      if (aBn1 == null && aBn2 == null) {
+        res = 0;
+      } else if (aBn2 == null) {
+        res = 1;
+      } else {
+        res = -1;
+      }
     } else {
-      return -1;
+      if ((aBn1.getId() == aBn2.getId() && aBn1.getNodeid() == aBn2.getNodeid())) {
+        res = 0;
+      } else if ((aBn1.getId() > aBn2.getId())
+        || (aBn1.getId() == aBn2.getId() && (aBn1.getNodeid() > aBn2.getNodeid()))) {
+        res = 1;
+      } else {
+        res = -1;
+      }
     }
+    return res;
   }
 }

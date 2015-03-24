@@ -50,6 +50,7 @@ public class Executor {
               aDDL.replicas);
         }
         aRes.retval = 0L;
+        break;
       case OP_READ:
         byte[] readbuf = new byte[(int) aRW.size];
         try {
@@ -61,6 +62,7 @@ public class Executor {
         // we need to eliminate memcpys
         aRes.buffer = new String(readbuf, Charset.forName("UTF-8"));
         aRes.retval = length;
+        break;
       case OP_WRITE:
         try {
           length = _replica._storage.write(
@@ -71,7 +73,9 @@ public class Executor {
           throw e;
         }
         aRes.retval = length;
+        break;
       case OP_UPDATE:
+        aRes.retval = 0L;
         break;
       case OP_DELETE:
         try {
@@ -82,13 +86,16 @@ public class Executor {
           throw e;
         }
         aRes.retval = 0L;
+        break;
       case OP_GETMETA:
+        aRes.retval = 0L;
         break;
       case OP_SETMETA:
+        aRes.retval = 0L;
         break;
       default:
+        aRes.retval = -1L;
         break;
     }
-    aRes.retval = -1L;
   }
 }

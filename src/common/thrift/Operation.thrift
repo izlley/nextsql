@@ -19,9 +19,9 @@ struct TRepNode {
 }
 
 struct TRWparam {
-  1: required string buffer
-  2: required i64 offset
-  3: required i64 size
+  1: required i64 offset
+  2: required i64 size
+  3: optional string buffer
 }
 
 struct TDDLparam {

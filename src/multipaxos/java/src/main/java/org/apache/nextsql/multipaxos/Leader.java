@@ -5,12 +5,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import org.apache.nextsql.common.NextSqlException;
-import org.apache.nextsql.multipaxos.nodemanager.INodeManager;
 import org.apache.nextsql.thrift.TBallotNum;
-import org.apache.nextsql.thrift.TNetworkAddress;
 import org.apache.nextsql.thrift.TOperation;
-import org.apache.nextsql.multipaxos.util.SystemInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,15 +19,15 @@ public class Leader {
   private final Lock _writeLock = _bnLock.writeLock();
   protected ConcurrentHashMap<Long, TOperation> _proposals = new ConcurrentHashMap<Long, TOperation>();
   
-  public Leader(INodeManager aNodeMgr) throws NextSqlException {
-    TNetworkAddress addr = SystemInfo.getNetworkAddress();
-    if (addr == null) {
-      throw new NextSqlException("getNetworkAddress failed");
+  public Leader(TBallotNum aInitBn, boolean aIsLeader) {
+    _ballotNum = aInitBn;
+    if (aIsLeader) {
+      _active.set(true);
     }
-    _ballotNum = new TBallotNum(0L, aNodeMgr.getNodeId(addr));
   }
   
   public TBallotNum getBallotNum() {
+    if (_ballotNum == null) return null;
     try {
       _readLock.lock();
       return _ballotNum;
@@ -41,6 +37,7 @@ public class Leader {
   }
   
   public TBallotNum getBallotNumClone() {
+    if (_ballotNum == null) return null;
     try {
       _readLock.lock();
       return new TBallotNum(_ballotNum);
@@ -59,6 +56,7 @@ public class Leader {
   }
   
   public TBallotNum increaseAndGetBN() {
+    if (_ballotNum == null) return null;
     try {
       _writeLock.lock();
       ++_ballotNum.id;

@@ -55,6 +55,7 @@ public class PaxosTServer implements PaxosService.Iface {
 
   @Override
   public THeartbeatResp Heartbeat() throws TException {
+    // Think about what kind of info does this HB need to contain. 
     THeartbeatResp resp = new THeartbeatResp(new TStatus(TStatusCode.SUCCESS));
     return resp;
   }
