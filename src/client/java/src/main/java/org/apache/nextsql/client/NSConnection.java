@@ -41,7 +41,7 @@ public class NSConnection {
       return;
     // TODO: send close request to a server to free server-side resources
     // _client.closesession...
-    if (_transport == null) {
+    if (_transport != null) {
       _transport.close();
     }
     _isClosed = true;

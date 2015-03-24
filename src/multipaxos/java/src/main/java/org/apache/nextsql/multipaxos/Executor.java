@@ -19,8 +19,8 @@ public class Executor {
     this._replica = aRep;
   }
   
-  synchronized public void exec(long aOpH, TOpType aType, TDDLparam aDDL, TRWparam aRW, TExecResult aRes)
-      throws NextSqlException {
+  synchronized public void exec(long aOpH, TOpType aType, TDDLparam aDDL,
+      TRWparam aRW, TExecResult aRes) throws NextSqlException {
     LOG.debug("Try to exec the operation: type = {}, opH = {}", aType, aOpH);
     long length = 0L;
     switch (aType) {

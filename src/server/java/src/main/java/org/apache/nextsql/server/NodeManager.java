@@ -58,7 +58,7 @@ public class NodeManager implements INodeManager {
           NextSqlServer._conf.getInt(NextSqlConfigKeys.NS_PAXOS_SERVER_PORT,
             NextSqlConfigKeys.NS_PAXOS_SERVER_PORT_DEFAULT))
         );
-      if (SystemInfo.getNetworkAddress().getHostname().equals(nodeList[i])) {
+      if (SystemInfo.getNetworkAddress().getHostname().equals(ip)) {
         _myNodeId = nid;
       }
     }

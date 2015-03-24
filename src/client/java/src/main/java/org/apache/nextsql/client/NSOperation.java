@@ -1,8 +1,6 @@
 package org.apache.nextsql.client;
 
 import java.util.List;
-import java.util.concurrent.locks.ReentrantLock;
-
 import org.apache.nextsql.thrift.ReplicaService;
 import org.apache.nextsql.thrift.TExecuteOperationReq;
 import org.apache.nextsql.thrift.TExecuteOperationResp;
@@ -34,14 +32,14 @@ public class NSOperation {
   private long _defaultRWOffset = 0L;
   private long _defaultRWSize = 1024L;
   
-  public class Block {
+  public class NSBlock {
     final String _blkId;
-    Block(String aBlkId) {
+    NSBlock(String aBlkId) {
       this._blkId = aBlkId;
     }
   }
   
-  public static enum OpType {
+  public static enum NSOpType {
     READ,
     WRITE,
     UPDATE,
@@ -57,7 +55,7 @@ public class NSOperation {
     this._port = _connection._port;
   }
   
-  public Block Openfile(String aFilename, String aMode) throws NSQLException {
+  public NSBlock Openfile(String aFilename, String aMode) throws NSQLException {
     long version = (NSConnection._blockMeta != null)? NSConnection._blockMeta.version: 0L;
     try {
       TOpenFileReq req = new TOpenFileReq(aFilename, version);
@@ -66,7 +64,7 @@ public class NSOperation {
       if (resp.isSetBlkmeta()) {
         NSConnection._blockMeta = resp.blkmeta;
       }
-      return new Block(resp.blkId);
+      return new NSBlock(resp.blkId);
     } catch (NSQLException e) {
       throw e;
     } catch (Exception e) {
@@ -74,27 +72,27 @@ public class NSOperation {
     }
   }
   
-  public NSResultSet execute(Block aBlk, OpType aType, String aInBuff)
+  public NSResultSet execute(NSBlock aBlk, NSOpType aType, String aInBuff)
       throws NSQLException {
     return execute(aBlk, aType, aInBuff, _defaultRWOffset, _defaultRWSize, null);
   }
   
-  public NSResultSet execute(Block aBlk, OpType aType, String aInBuff,
+  public NSResultSet execute(NSBlock aBlk, NSOpType aType, String aInBuff,
       long aOffset, long aSize) throws NSQLException {
     return execute(aBlk, aType, aInBuff, aOffset, aSize, null);
   }
   
-  public NSResultSet execute(String aFilename, OpType aType, String aInBuff)
+  public NSResultSet execute(String aFilename, NSOpType aType, String aInBuff)
       throws NSQLException {
     return execute(null, aType, aInBuff, _defaultRWOffset, _defaultRWSize, aFilename);
   }
   
-  public NSResultSet execute(String aFilename, OpType aType, String aInBuff,
+  public NSResultSet execute(String aFilename, NSOpType aType, String aInBuff,
       long aOffset, long aSize) throws NSQLException {
     return execute(null, aType, aInBuff, aOffset, aSize, aFilename);
   }
   
-  public NSResultSet execute(Block aBlk, OpType aType, String aInBuff,
+  public NSResultSet execute(NSBlock aBlk, NSOpType aType, String aInBuff,
       long aOffset, long aSize, String aFilename) throws NSQLException {
     TOperation op;
     TOpType type;
@@ -110,7 +108,7 @@ public class NSOperation {
     op = new TOperation(0L, _opId, type);
     op.setRw_param(new TRWparam(aInBuff, aOffset, aSize));
     
-    if (aType == OpType.READ || aType == OpType.WRITE || aType == OpType.UPDATE) {
+    if (aType == NSOpType.READ || aType == NSOpType.WRITE || aType == NSOpType.UPDATE) {
       CheckReConnect(aBlk, aFilename);
     }
     
@@ -147,7 +145,7 @@ public class NSOperation {
     }
   }
   
-  private void CheckReConnect(Block aBlk, String aFilename) throws NSQLException {
+  private void CheckReConnect(NSBlock aBlk, String aFilename) throws NSQLException {
     if (NSConnection._blockMeta != null) {
       TLeaderRep laddr = null;
       if (aBlk != null) {

@@ -22,7 +22,7 @@ struct TOpenFileReq {
 
 struct TOpenFileResp {
   1: required Status.TStatus status
-  2: required string blkId
+  2: optional string blkId
   3: optional BlockMeta.TClientBlockMeta blkmeta
 }
 
