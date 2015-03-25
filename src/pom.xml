@@ -22,6 +22,7 @@
     <module>multipaxos/java</module>
     <module>server/java</module>
     <module>client/java</module>
+    <module>examples</module>
   </modules>
   <repositories>
     <repository>

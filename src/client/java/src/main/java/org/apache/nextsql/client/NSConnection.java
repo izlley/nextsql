@@ -33,7 +33,7 @@ public class NSConnection {
   }
   
   public NSOperation createOperation() throws NSQLException {
-    return new NSOperation(this, _client, _rand.nextLong());
+    return new NSOperation(this, _client);
   }
   
   public void close() throws NSQLException {
@@ -59,5 +59,9 @@ public class NSConnection {
       throw new NSQLException("Could not establish connection to " + _host + ":"
         + _port + e.getMessage(), e);
     }
+  }
+  
+  protected long getRandOpId() {
+    return _rand.nextLong();
   }
 }

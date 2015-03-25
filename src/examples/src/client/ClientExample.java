@@ -40,11 +40,15 @@ public class ClientExample {
         op = conn.createOperation();
         // open file
         NSBlock blk = op.Openfile("file.tmp", null);
-        // exec operation
-        NSResultSet result = op.execute(blk, NSOpType.READ, null);
+        // exec R operation
+        NSResultSet result1 = op.execute(blk, NSOpType.READ, null);
+        // exec W operation
+        NSResultSet result2 = op.execute(blk, NSOpType.WRITE, "abc");
         // print result
-        System.out.println("result code = " + result.getState()
-            + ", result buff = " + result.getBuffer());
+        System.out.println("result1 code = " + result1.getState()
+            + ", result1 buff = " + result1.getBuffer());
+        System.out.println("result2 code = " + result2.getState()
+            + ", result2 buff = " + result2.getBuffer());
         // close op
         op.close();
         // close conn

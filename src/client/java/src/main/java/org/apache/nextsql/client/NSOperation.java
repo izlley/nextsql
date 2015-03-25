@@ -1,5 +1,6 @@
 package org.apache.nextsql.client;
 
+import java.security.SecureRandom;
 import java.util.List;
 import org.apache.nextsql.thrift.ReplicaService;
 import org.apache.nextsql.thrift.TExecuteOperationReq;
@@ -27,7 +28,6 @@ public class NSOperation {
   private String _host;
   private int _port;
   
-  private final long _opId;
   private boolean _isClosed = false;
   private long _defaultRWOffset = 0L;
   private long _defaultRWSize = 1024L;
@@ -47,10 +47,9 @@ public class NSOperation {
     SETMETA
   }
   
-  public NSOperation(NSConnection aConn, ReplicaService.Iface aClient, long aOpId) {
+  public NSOperation(NSConnection aConn, ReplicaService.Iface aClient) {
     this._connection = aConn;
     this._client = aClient;
-    this._opId = aOpId;
     this._host = _connection._host;
     this._port = _connection._port;
   }
@@ -105,7 +104,7 @@ public class NSOperation {
       default:
         throw new NSQLException("Unknown operation type.");
     }
-    op = new TOperation(0L, _opId, type);
+    op = new TOperation(0L, _connection.getRandOpId(), type);
     op.setRw_param(new TRWparam(aOffset, aSize).setBuffer(aInBuff));
     
     if (aType == NSOpType.READ || aType == NSOpType.WRITE || aType == NSOpType.UPDATE) {
