@@ -130,9 +130,11 @@ public class Replica {
     ///////////////////
     // assign slotNum
     long newSlotNum = _slotNum.incrementAndGet();
-    LOG.debug("The replica propose a new SN = {}", newSlotNum);
     // add to proposals map
     _proposals.put(newSlotNum, aOp);
+    LOG.debug("The replica add new (slot,op) in the proposalMap: SN = {}, Op = {}:{}",
+      newSlotNum, aOp.operation_handle, aOp.operation_type, aOp);
+    LOG.debug("Current proposalMap entries :{}", _proposals.toString());
     // send accept msg to the leader
     TLeaderAcceptResp acceptResp = null;
     // TODO: read op can be requested to any replica
@@ -186,7 +188,11 @@ public class Replica {
   public TDecisionResp Decision(long aSlotNum, TOperation aOp) throws TException {
     LOG.debug("Decision is requested to the replica");
     TDecisionResp resp = new TDecisionResp();
+    _slotNum.incrementAndGet();
     _decisions.put(aSlotNum, aOp);
+    LOG.debug("The replica add new (slot,op) in the decisionMap: SN = {}, Op = {}:{}",
+      aSlotNum, aOp.operation_handle, aOp.operation_type, aOp);
+    LOG.debug("Current decisionMap entries :{}", _decisions.toString());
     List<Future<TExecuteOperationResp>> execOpResps =
       new ArrayList<Future<TExecuteOperationResp>>();
     // TODO : I don't know this works properly

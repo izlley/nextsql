@@ -178,6 +178,7 @@ public class Paxos {
     TLeaderAcceptResp resp = new TLeaderAcceptResp();
     // check the requested slot is already proposed
     if (_leader._proposals.containsKey(aSlotNum)) {
+      LOG.debug("Slot_num has already occupied at leader");
       resp.setStatus(new TStatus(TStatusCode.ERROR));
       resp.getStatus().setError_message("Slot_num has already occupied at leader");
       return resp;
@@ -403,7 +404,7 @@ public class Paxos {
     if (compareBallotNums(aBn, bn) > 0) {
       // TODO: need logging to stable storage
       _acceptor.setBallotNum(aBn);
-      LOG.info("Acceptor's BN is updated on P1A: from = {}:{}, to = {}:{}",
+      LOG.debug("Acceptor's BN is updated on P1A: from = {}:{}, to = {}:{}",
         bn.id, bn.nodeid, aBn.id, aBn.nodeid);
       bn = aBn;
     }
@@ -423,8 +424,9 @@ public class Paxos {
       _acceptor.setBallotNum(aBn);
       _acceptor.addAcceptVal(
         new TAcceptedValue(aBn, aSlotNum, aOp));
-      LOG.info("Acceptor accept the requested value on P2A: BN = {}:{}, SN = {}, OPType = {}",
-        aBn.id, aBn.nodeid, aSlotNum, aOp.getOperation_type());
+      LOG.debug("Acceptor accept the requested value on P2A: BN = {}:{}, SN = {}, OP = {}:{}",
+        aBn.id, aBn.nodeid, aSlotNum, aOp.operation_handle, aOp.getOperation_type());
+      LOG.debug("Current acceptMap entries :{}", _acceptor.getAcceptVals().toString());
       bn = aBn;
     }
     TAcceptorPhaseTwoResp resp =

@@ -1,5 +1,5 @@
 # nextsql
-This is the next generation of database like spanner and foundationDB.
+NextSql is the next generation of database like spanner and foundationDB.
 
 ## Multi-paxos
 Implemented multi-paxos for data replication and RSM.

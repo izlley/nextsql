@@ -1,6 +1,5 @@
 package org.apache.nextsql.client;
 
-import java.security.SecureRandom;
 import java.util.List;
 import org.apache.nextsql.thrift.ReplicaService;
 import org.apache.nextsql.thrift.TExecuteOperationReq;
