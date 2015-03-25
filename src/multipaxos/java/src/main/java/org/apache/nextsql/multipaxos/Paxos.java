@@ -266,7 +266,8 @@ public class Paxos {
       // send a decision msg to all replicas
       int i = 0;
       for (TRepNode rep: _replica._replicaNodes) {
-        TDecisionReq decisionReq = new TDecisionReq(rep.replica_id, aSlotNum, aOp);
+        TDecisionReq decisionReq =
+          new TDecisionReq(rep.replica_id, aSlotNum, aOp);
         TNetworkAddress repAddr = _replica._nodeMgr.getNodeInfo(rep.node_id);
         decisionResps.add(
           _threadPool.submit(

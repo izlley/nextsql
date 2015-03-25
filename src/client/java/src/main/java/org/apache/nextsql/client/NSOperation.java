@@ -156,7 +156,9 @@ public class NSOperation {
       if (laddr != null) {
         if (!(laddr.leader_repaddr.hostname.equals(_host)) ||
             !(laddr.leader_repaddr.rsm_port == _port)) {
-          reConnect(laddr.leader_repaddr.hostname, laddr.leader_repaddr.rsm_port);
+          //make another connection
+          openTransportInOp(laddr.leader_repaddr.hostname,
+            laddr.leader_repaddr.rsm_port);
         }
       }
     } else {
@@ -180,12 +182,6 @@ public class NSOperation {
     }
   }
   
-  synchronized private void reConnect(String aHost, int aPort) throws NSQLException {
-    openTransportInOp();
-    _host = aHost;
-    _port = aPort;
-  }
-  
   public void close() {
     if (_isClosed)
       return;
@@ -202,11 +198,11 @@ public class NSOperation {
     return _isClosed;
   }
   
-  protected void openTransportInOp() throws NSQLException {
+  synchronized private void openTransportInOp(String aHost, int aPort) throws NSQLException {
     if (_transport != null) {
       _transport.close();
     }
-    _transport = new TSocket(_host, _port, _connection._socketTimeout);
+    _transport = new TSocket(aHost, aPort, _connection._socketTimeout);
 
     TProtocol protocol = new TBinaryProtocol(_transport);
     _client = new ReplicaService.Client(protocol);
@@ -214,8 +210,10 @@ public class NSOperation {
     try {
       _transport.open();
     } catch (TTransportException e) {
-      throw new NSQLException("Could not establish connection to " + _host + ":"
-        + _port + e.getMessage(), e);
+      throw new NSQLException("Could not establish connection to " + aHost + ":"
+        + aPort + e.getMessage(), e);
     }
+    _host = aHost;
+    _port = aPort;
   }
 }

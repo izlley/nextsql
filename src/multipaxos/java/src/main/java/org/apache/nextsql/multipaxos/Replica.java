@@ -185,10 +185,17 @@ public class Replica {
                    aRes);
   }
 
-  public TDecisionResp Decision(long aSlotNum, TOperation aOp) throws TException {
+  public TDecisionResp Decision(long aSlotNum, TOperation aOp)
+      throws TException {
     LOG.debug("Decision is requested to the replica");
     TDecisionResp resp = new TDecisionResp();
-    _slotNum.incrementAndGet();
+    if (aSlotNum > _slotNum.get()) {
+      synchronized(this) {
+        if (aSlotNum > _slotNum.get()) {
+          _slotNum.set(aSlotNum);
+        }
+      }
+    }
     _decisions.put(aSlotNum, aOp);
     LOG.debug("The replica add new (slot,op) in the decisionMap: SN = {}, Op = {}:{}",
       aSlotNum, aOp.operation_handle, aOp.operation_type, aOp);
