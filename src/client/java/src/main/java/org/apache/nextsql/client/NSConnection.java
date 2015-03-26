@@ -19,7 +19,7 @@ public class NSConnection {
   private boolean _isClosed = false;
   private final SecureRandom _rand;
   // client-side block-meta cache
-  static protected TClientBlockMeta _blockMeta = null;
+  protected static TClientBlockMeta _blockMeta = null;
   
   public NSConnection(String aHost, int aPort, int aTimeout) {
     this._host = aHost;

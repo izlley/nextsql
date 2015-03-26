@@ -116,7 +116,7 @@ public class NSOperation {
       // If REQUESTED_WRONG_NODE is returned, retry 3 times
       for (int i = 0; i < 3; i++) {
         if (aBlk == null && aFilename != null) {
-          req = new TExecuteOperationReq(null, op, NSConnection._blockMeta.version);
+          req = new TExecuteOperationReq("", op, NSConnection._blockMeta.version);
           req.setFile_path(aFilename);
         } else {
           req = new TExecuteOperationReq(aBlk._blkId, op,
@@ -126,10 +126,8 @@ public class NSOperation {
         if (resp.getStatus().getStatus_code() == TStatusCode.REQUESTED_WRONG_NODE) {
           if (resp.isSetBlkmeta()) {
             NSConnection._blockMeta = resp.blkmeta;
-            CheckReConnect(aBlk, aFilename);
-          } else {
-            break;
           }
+          CheckReConnect(aBlk, aFilename);
         } else {
           break;
         }
@@ -151,7 +149,9 @@ public class NSOperation {
       } else if (aFilename != null) {
         List<String> blkIds = NSConnection._blockMeta.fileblkid_map
             .get(aFilename);
-        laddr = NSConnection._blockMeta.blkidleader_map.get(blkIds.get(0));
+        if (blkIds != null) {
+          laddr = NSConnection._blockMeta.blkidleader_map.get(blkIds.get(0));
+        }
       }
       if (laddr != null) {
         if (!(laddr.leader_repaddr.hostname.equals(_host)) ||

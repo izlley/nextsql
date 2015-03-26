@@ -176,6 +176,7 @@ public class ReplicaTServer implements ReplicaService.Iface {
   
   @Override
   public TDecisionResp Decision(TDecisionReq aReq) throws TException {
+    LOG.debug("Decision is requested: RID = {}, SN = {}", aReq.repid, aReq.slot_num);
     Replica rep = _blkMgr.getReplicafromRepId(aReq.repid);
     if (rep == null) {
       LOG.error("The replicaId ( " + aReq.repid + " ) is unknown");
@@ -187,10 +188,11 @@ public class ReplicaTServer implements ReplicaService.Iface {
   }
   
   @Override
-  public TGetCBlockMetaResp GetCBlockMeta(TGetCBlockMetaReq req)
+  public TGetCBlockMetaResp GetCBlockMeta(TGetCBlockMetaReq aReq)
       throws TException {
+    LOG.debug("GetCBlockMeta is requested.");
     TGetCBlockMetaResp resp = new TGetCBlockMetaResp();
-    if (_blkMgr.getCBlkMeta().version > req.version) {
+    if (_blkMgr.getCBlkMeta().version > aReq.version) {
       resp.setBlkmeta(_blkMgr.getCBlkMeta());
     }
     resp.setStatus(new TStatus(TStatusCode.SUCCESS));
