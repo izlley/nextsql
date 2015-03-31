@@ -2,6 +2,7 @@ package org.apache.nextsql.server;
 
 import java.util.List;
 import org.apache.nextsql.common.NextSqlException;
+import org.apache.nextsql.multipaxos.Executor;
 import org.apache.nextsql.multipaxos.Replica;
 import org.apache.nextsql.thrift.ReplicaService;
 import org.apache.nextsql.thrift.TDDLparam;
@@ -77,7 +78,16 @@ public class ReplicaTServer implements ReplicaService.Iface {
         if (openResult.getStatus().getStatus_code() != TStatusCode.SUCCESS) {
           throw new NextSqlException(openResult.getStatus().error_message);
         }
-        resp.setBlkId(blkId);
+        if (openResult.result.retval == Executor.OPEN_FILE_ALREADY_EXISTS) {
+          blockIds = _blkMgr.getBlkIdsfromPath(aReq.file_path);
+          if (blockIds != null) {
+            resp.setBlkId(blockIds.get(0));
+          } else {
+            throw new NextSqlException("Openfile failed.");
+          }
+        } else {
+          resp.setBlkId(blkId);
+        }
       } catch (NextSqlException e) {
         LOG.error(e.getMessage(), e);
         resp.setStatus(new TStatus(TStatusCode.ERROR));

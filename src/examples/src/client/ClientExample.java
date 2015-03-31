@@ -39,11 +39,13 @@ public class ClientExample {
         // make operation
         op = conn.createOperation();
         // open file
-        NSBlock blk = op.Openfile("file.tmp", null);
+        //NSBlock blk = op.Openfile("file.tmp", null);
         // exec R operation
-        NSResultSet result1 = op.execute(blk, NSOpType.READ, null);
+        //NSResultSet result1 = op.execute(blk, NSOpType.READ, null);
+        NSResultSet result1 = op.execute("file.tmp", NSOpType.READ, null);
         // exec W operation
-        NSResultSet result2 = op.execute(blk, NSOpType.WRITE, "abc");
+        //NSResultSet result2 = op.execute(blk, NSOpType.WRITE, "abc");
+        NSResultSet result2 = op.execute("file.tmp", NSOpType.WRITE, "abc");
         // print result
         System.out.println("result1 code = " + result1.getState()
             + ", result1 buff = " + result1.getBuffer());

@@ -427,7 +427,6 @@ public class Paxos {
         new TAcceptedValue(aBn, aSlotNum, aOp));
       LOG.debug("Acceptor accept the requested value on P2A: BN = {}:{}, SN = {}, OP = {}:{}",
         aBn.id, aBn.nodeid, aSlotNum, aOp.operation_handle, aOp.getOperation_type());
-      LOG.debug("Current acceptMap entries :{}", _acceptor.getAcceptVals().toString());
       bn = aBn;
     }
     TAcceptorPhaseTwoResp resp =

@@ -11,6 +11,10 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.thrift.TException;
@@ -69,6 +73,8 @@ public class Replica {
   protected final INodeManager _nodeMgr;
   protected final IBlockManager _blockMgr;
   protected final IStorage _storage;
+  private final Lock _execOpLock = new ReentrantLock(true);
+  private final Condition _execCond = _execOpLock.newCondition();
   
   private class ExecuteDupSlotOp implements Callable {
     private TOperation _op;
@@ -174,7 +180,6 @@ public class Replica {
           entry.getValue().operation_handle == aOp.operation_handle) {
         LOG.debug("Skip performing duplicated operation. preSN = {}, currSN = {}",
           entry.getKey(), _decisionSlotNum.get());
-        _decisionSlotNum.incrementAndGet();
         return;
       }
     }
@@ -196,38 +201,70 @@ public class Replica {
         }
       }
     }
-    _decisions.put(aSlotNum, aOp);
-    LOG.debug("The replica add new (slot,op) in the decisionMap: SN = {}, Op = {}:{}",
-      aSlotNum, aOp.operation_handle, aOp.operation_type, aOp);
-    LOG.debug("Current decisionMap entries :{}", _decisions.toString());
     List<Future<TExecuteOperationResp>> execOpResps =
       new ArrayList<Future<TExecuteOperationResp>>();
-    // TODO : I don't know this works properly
-    // execute operations in sequential order
-    for (TOperation op = _decisions.get(_decisionSlotNum.get()); op != null
-        ; op = _decisions.get(_decisionSlotNum.get())) {
-      TOperation pop = _proposals.get(_decisionSlotNum.get());
-      if (pop != null && !pop.equals(op)) {
-        // duplicated slotnum in proposal map should be assigned a new slotnum
-        // what if it's a read op?
-        execOpResps.add(_threadPool.submit(new ExecuteDupSlotOp(pop)));
+    boolean skipExecOp = false;
+    try {
+      _decisions.put(aSlotNum, aOp);
+      LOG.debug("The replica add new (slot,op) in the decisionMap: SN = {}, Op = {}:{}",
+        aSlotNum, aOp.operation_handle, aOp.operation_type, aOp);
+      LOG.debug("Current decisionMap entries :{}", _decisions.toString());
+      // TODO : I should optimize below code block for performance.
+      // execute operations in sequential order
+      _execOpLock.lock();
+      while (_decisionSlotNum.get() != aSlotNum) {
+        try {
+          if(!_execCond.await(60000, TimeUnit.MILLISECONDS)) {
+            // TODO: decision msg may get lost, if so we need recovery here.
+          }
+        } catch (InterruptedException e) {
+          LOG.warn("Decision thread is interrupted: ", e);
+        }
       }
-      // execute the operation
-      try {
+      for (;_decisionSlotNum.get() <= aSlotNum; _decisionSlotNum.incrementAndGet()) {
+        TOperation op = _decisions.get(_decisionSlotNum.get());
+        if (op == null) break;
+        // check duplicated operation in proposalMap
+        TOperation pop = _proposals.get(_decisionSlotNum.get());
+        if (pop != null && !pop.equals(op)) {
+          // duplicated slotnum in proposal map should be assigned a new slotnum
+          // what if it's a read op?
+          execOpResps.add(_threadPool.submit(new ExecuteDupSlotOp(pop)));
+        }
+        // check duplicated operation in decisionMap
+        for (Entry<Long, TOperation> entry: _decisions.entrySet()) {
+          if (entry.getKey() < _decisionSlotNum.get() &&
+              entry.getValue().operation_handle == aOp.operation_handle) {
+            LOG.debug("Skip performing duplicated operation. preSN = {}, currSN = {}",
+              entry.getKey(), _decisionSlotNum.get());
+            skipExecOp = true;
+            break;
+          }
+        }
+        if (skipExecOp) {
+          skipExecOp = false;
+          continue;
+        }
+        // execute the operation
         TExecResult result = new TExecResult();
         perform(op, result);
-        long curSlot = _decisionSlotNum.getAndIncrement();
         // only leader returns the operation result value
         if (_leader) { // && curSlot == aSlotNum) {
           resp.setResult(result);
         } // else is lagging case?
-      } catch (NextSqlException e) {
-        resp.setStatus(new TStatus(TStatusCode.ERROR));
-        resp.getStatus().setError_message("Storage IO failure: " + e.getMessage());
-        return resp;
       }
+      resp.setStatus(new TStatus(TStatusCode.SUCCESS));
+      _execCond.signalAll();
+    } catch (NextSqlException e) {
+      // just skip error op
+      _decisionSlotNum.incrementAndGet();
+      resp.setStatus(new TStatus(TStatusCode.ERROR));
+      resp.getStatus()
+          .setError_message("Storage IO failure: " + e.getMessage());
+      _execCond.signalAll();
+    } finally {
+      _execOpLock.unlock();
     }
-    resp.setStatus(new TStatus(TStatusCode.SUCCESS));
     return resp;
   }
 }
