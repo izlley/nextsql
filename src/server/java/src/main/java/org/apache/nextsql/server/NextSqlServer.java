@@ -95,10 +95,10 @@ public class NextSqlServer {
           processor(processor);
       sArgs.inputProtocolFactory(new TBinaryProtocol.Factory());
       sArgs.outputProtocolFactory(new TBinaryProtocol.Factory());
-      sArgs.minWorkerThreads(_conf.getInt(NextSqlConfigKeys.NS_REPLICA_WORKERTHREAD_MIN,
-        NextSqlConfigKeys.NS_REPLICA_WORKERTHREAD_MIN_DEFAULT));
-      sArgs.maxWorkerThreads(_conf.getInt(NextSqlConfigKeys.NS_REPLICA_WORKERTHREAD_MAX,
-        NextSqlConfigKeys.NS_REPLICA_WORKERTHREAD_MAX_DEFAULT));
+      sArgs.minWorkerThreads(_conf.getInt(NextSqlConfigKeys.NS_REPLICA_THRIFTTHREAD_MIN,
+        NextSqlConfigKeys.NS_REPLICA_THRIFTTHREAD_MIN_DEFAULT));
+      sArgs.maxWorkerThreads(_conf.getInt(NextSqlConfigKeys.NS_REPLICA_THRIFTTHREAD_MAX,
+        NextSqlConfigKeys.NS_REPLICA_THRIFTTHREAD_MAX_DEFAULT));
       TServer server = new TThreadPoolServer(sArgs);
       
       System.out.println("Starting the NextSql-replica server...");
@@ -126,10 +126,10 @@ public class NextSqlServer {
           processor(processor);
       sArgs.inputProtocolFactory(new TBinaryProtocol.Factory());
       sArgs.outputProtocolFactory(new TBinaryProtocol.Factory());
-      sArgs.minWorkerThreads(_conf.getInt(NextSqlConfigKeys.NS_PAXOS_WORKERTHREAD_MIN,
-        NextSqlConfigKeys.NS_PAXOS_WORKERTHREAD_MIN_DEFAULT));
-      sArgs.maxWorkerThreads(_conf.getInt(NextSqlConfigKeys.NS_PAXOS_WORKERTHREAD_MAX,
-        NextSqlConfigKeys.NS_PAXOS_WORKERTHREAD_MAX_DEFAULT));
+      sArgs.minWorkerThreads(_conf.getInt(NextSqlConfigKeys.NS_PAXOS_THRIFTTHREAD_MIN,
+        NextSqlConfigKeys.NS_PAXOS_THRIFTTHREAD_MIN_DEFAULT));
+      sArgs.maxWorkerThreads(_conf.getInt(NextSqlConfigKeys.NS_PAXOS_THRIFTTHREAD_MAX,
+        NextSqlConfigKeys.NS_PAXOS_THRIFTTHREAD_MAX_DEFAULT));
       TServer server = new TThreadPoolServer(sArgs);
       
       System.out.println("Starting the NextSql-paxos server...");

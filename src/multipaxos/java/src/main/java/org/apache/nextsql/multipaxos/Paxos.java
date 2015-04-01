@@ -8,11 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.nextsql.common.NextSqlException;
 import org.apache.thrift.TException;
@@ -43,9 +39,7 @@ import org.apache.nextsql.thrift.TStatusCode;
 
 public class Paxos {
   private static final Logger LOG = LoggerFactory.getLogger(Paxos.class);
-  
-  private static ExecutorService _threadPool = new ThreadPoolExecutor(
-      8, 36, 60L, TimeUnit.SECONDS, new SynchronousQueue<Runnable>());
+
   private Replica _replica = null;
   private Leader _leader = null;
   private Acceptor _acceptor = null;
@@ -219,7 +213,7 @@ public class Paxos {
       LOG.debug("Leader send p2a msg to aceptor({}:{})",
         accAddr.hostname, accAddr.paxos_port);
       p2bResps.add(
-        _threadPool.submit(
+        _replica._threadPool.submit(
           new SendPaxosMsg(PaxosMsgType.P2A,
                            accAddr,
                            p2aReq,
@@ -270,7 +264,7 @@ public class Paxos {
           new TDecisionReq(rep.replica_id, aSlotNum, aOp);
         TNetworkAddress repAddr = _replica._nodeMgr.getNodeInfo(rep.node_id);
         decisionResps.add(
-          _threadPool.submit(
+          _replica._threadPool.submit(
             new SendDecisionMsg(
               repAddr, decisionReq, (i++ == _replica._leaderIdx))
           )
@@ -320,7 +314,7 @@ public class Paxos {
       }
       LOG.debug("Leader send p1a msg to aceptor(" + accAddr.getHostname() + ")");
       p1bResps.add(
-        _threadPool.submit(
+        _replica._threadPool.submit(
           new SendPaxosMsg(PaxosMsgType.P1A,
                            accAddr,
                            p1aReq,

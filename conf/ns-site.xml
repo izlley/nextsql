@@ -48,4 +48,14 @@
   <value>TEST</value>
   <description>custom storage class path</description>
 </property-->
+<property>
+  <name>paxos.workerthread.min</name>
+  <value>16</value>
+  <description>Paxos server's thrift workerthread max size</description>
+</property>
+<property>
+  <name>paxos.workerthread.max</name>
+  <value>32</value>
+  <description>Paxos server's thrift workerthread max size</description>
+</property>
 </configuration>

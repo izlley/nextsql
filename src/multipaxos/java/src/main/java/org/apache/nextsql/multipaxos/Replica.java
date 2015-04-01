@@ -42,9 +42,14 @@ import org.apache.nextsql.thrift.TStatusCode;
 
 public class Replica {
   private static final Logger LOG = LoggerFactory.getLogger(Replica.class);
+  protected static final PaxosConfiguration _conf = new PaxosConfiguration();
   
-  private static ExecutorService _threadPool = new ThreadPoolExecutor(
-      2, 36, 60L, TimeUnit.SECONDS, new SynchronousQueue<Runnable>());
+  protected static ExecutorService _threadPool = new ThreadPoolExecutor(
+    _conf.getInt(PaxosConfigKeys.PAXOS_WORKERTHREAD_MIN,
+      PaxosConfigKeys.PAXOS_WORKERTHREAD_MIN_DEFAULT),
+    _conf.getInt(PaxosConfigKeys.PAXOS_WORKERTHREAD_MAX,
+      PaxosConfigKeys.PAXOS_WORKERTHREAD_MAX_DEFAULT),
+    60L, TimeUnit.SECONDS, new SynchronousQueue<Runnable>());
   private boolean _leader = false;
   protected final String _blockId;
   protected final String _replicaId;
