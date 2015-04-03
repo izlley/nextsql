@@ -17,7 +17,6 @@ import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.transport.TSocket;
 import org.apache.thrift.transport.TTransport;
-import org.apache.thrift.transport.TTransportException;
 
 public class NSOperation {
   private NSConnection _connection;
@@ -51,6 +50,12 @@ public class NSOperation {
     this._client = aClient;
     this._host = _connection._host;
     this._port = _connection._port;
+    // make dummy inst for pre-initializing static fields 
+    new TOperation();
+    new TRWparam();
+    new TExecuteOperationReq();
+    new ReplicaService.ExecuteOperation_args();
+    new ReplicaService.ExecuteOperation_result();
   }
   
   public NSBlock Openfile(String aFilename, String aMode) throws NSQLException {
@@ -94,6 +99,7 @@ public class NSOperation {
       long aOffset, long aSize, String aFilename) throws NSQLException {
     TOperation op;
     TOpType type;
+    long startT, endT;
     switch (aType) {
       case READ:    type = TOpType.OP_READ; break;
       case WRITE:   type = TOpType.OP_WRITE; break;
@@ -105,11 +111,9 @@ public class NSOperation {
     }
     op = new TOperation(0L, _connection.getRandOpId(), type);
     op.setRw_param(new TRWparam(aOffset, aSize).setBuffer(aInBuff));
-    
     if (aType == NSOpType.READ || aType == NSOpType.WRITE || aType == NSOpType.UPDATE) {
       CheckReConnect(aBlk, aFilename);
     }
-    
     try {
       TExecuteOperationReq req;
       TExecuteOperationResp resp = null;
@@ -156,6 +160,10 @@ public class NSOperation {
       if (laddr != null) {
         if (!(laddr.leader_repaddr.hostname.equals(_host)) ||
             !(laddr.leader_repaddr.rsm_port == _port)) {
+          // debug code
+          System.err.println("reconnect: preaddr = " + _host + ", postaddr = " +
+            laddr.leader_repaddr.hostname);
+          //
           //make another connection
           openTransportInOp(laddr.leader_repaddr.hostname,
             laddr.leader_repaddr.rsm_port);
@@ -209,7 +217,7 @@ public class NSOperation {
     
     try {
       _transport.open();
-    } catch (TTransportException e) {
+    } catch (Exception e) {
       throw new NSQLException("Could not establish connection to " + aHost + ":"
         + aPort + e.getMessage(), e);
     }

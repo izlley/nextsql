@@ -167,6 +167,7 @@ public class ReplicaTServer implements ReplicaService.Iface {
         rep = _blkMgr.getLocalReplica(null, aReq.blkId);
       }
       if (rep == null) {
+        LOG.debug("Requested to wrong node");
         resp = new TExecuteOperationResp(new TStatus(TStatusCode.REQUESTED_WRONG_NODE));
         if (aReq.blkmeta_version < _blkMgr.getCBlkMeta().version) {
           resp.setBlkmeta(_blkMgr.getCBlkMeta());
