@@ -4,6 +4,9 @@ import java.security.SecureRandom;
 
 import org.apache.nextsql.thrift.ReplicaService;
 import org.apache.nextsql.thrift.TClientBlockMeta;
+import org.apache.nextsql.thrift.TExecuteOperationReq;
+import org.apache.nextsql.thrift.TOperation;
+import org.apache.nextsql.thrift.TRWparam;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.transport.TSocket;
@@ -26,6 +29,12 @@ public class NSConnection {
     this._port = aPort;
     this._socketTimeout = aTimeout;
     this._rand = new SecureRandom();
+    // make dummy inst for pre-initializing static fields 
+    new TOperation();
+    new TRWparam();
+    new TExecuteOperationReq();
+    new ReplicaService.ExecuteOperation_args();
+    new ReplicaService.ExecuteOperation_result();
   }
   
   public void getConnectoin() throws NSQLException {

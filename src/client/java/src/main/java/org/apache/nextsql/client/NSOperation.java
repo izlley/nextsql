@@ -50,12 +50,6 @@ public class NSOperation {
     this._client = aClient;
     this._host = _connection._host;
     this._port = _connection._port;
-    // make dummy inst for pre-initializing static fields 
-    new TOperation();
-    new TRWparam();
-    new TExecuteOperationReq();
-    new ReplicaService.ExecuteOperation_args();
-    new ReplicaService.ExecuteOperation_result();
   }
   
   public NSBlock Openfile(String aFilename, String aMode) throws NSQLException {
