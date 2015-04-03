@@ -99,7 +99,6 @@ public class NSOperation {
       long aOffset, long aSize, String aFilename) throws NSQLException {
     TOperation op;
     TOpType type;
-    long startT, endT;
     switch (aType) {
       case READ:    type = TOpType.OP_READ; break;
       case WRITE:   type = TOpType.OP_WRITE; break;
